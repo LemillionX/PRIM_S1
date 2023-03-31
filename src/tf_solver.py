@@ -4,22 +4,28 @@ import sys
 from termcolor import colored
 from tqdm import tqdm
 
-def set_solid_boundary(grid, sizeX, sizeY, b=0):
-    indices = []
-    for i in range(sizeX):
-        for j in range(sizeY):
-            if (i==0) or (i==sizeX-1) or (j==0) or (j== sizeY -1):
-                indices.append([indexTo1D(i,j,sizeX)])
-    indices = tf.constant(indices)
-    updates = tf.constant(b, shape=(tf.shape(indices)[0]), dtype=tf.float32)
-    if tf.rank(updates).numpy() < tf.rank(grid):
-        updates = tf.expand_dims(updates, 1)
-    new_grid = tf.tensor_scatter_nd_update(grid, indices, updates)
-
-    return new_grid
+def set_solid_boundary(u, v, sizeX, sizeY, b=0):
+    new_u = tf.identity(u)
+    new_v = tf.identity(v)
+    
+    mask = tf.logical_or(tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) % sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) % sizeX, sizeX-1)),
+                     tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) // sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) // sizeX, sizeY-1)))
+    indices = tf.where(mask)[:, 0]
+    
+    new_u = tf.tensor_scatter_nd_update(new_u, tf.expand_dims(indices, axis=1), tf.constant(b, shape=indices.shape[0], dtype=tf.float32))
+    new_v = tf.tensor_scatter_nd_update(new_v, tf.expand_dims(indices, axis=1), tf.constant(b, shape=indices.shape[0], dtype=tf.float32))
+    
+    return new_u, new_v
 
 def indexTo1D(i,j, sizeX):
     return j*sizeX+i
+
+
+def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
+    if boundary_func is None:
+        return set_solid_boundary(u,v,sizeX,sizeY,b)
+    else:
+        return boundary_func(u,v,sizeX,sizeY,b)
 
 def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     _x = (x - offset)/d - 0.5
@@ -45,7 +51,7 @@ def advectCentered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     traced_x = tf.clip_by_value(coords_x - dt*u, offset + 0.5*d, offset + (sizeX-0.5)*d )
     traced_y = tf.clip_by_value(coords_y - dt*v, offset + 0.5*d, offset + (sizeY-0.5)*d)
     u1 = tf.map_fn(fn=lambda x: sampleAt(x[0],x[1],f,sizeX,sizeY, offset, d), elems=(traced_x, traced_y), dtype=tf.float32)
-    # return set_solid_boundary(u1, sizeX, sizeY)
+    # return set_boundary(u1, sizeX, sizeY)
     return u1
 
 def build_laplacian_matrix(sizeX,sizeY,a,b):
@@ -85,9 +91,8 @@ def solvePressure(u, v, sizeX, sizeY, h, mat):
         div = tf.expand_dims(div, 1)
     return tf.linalg.solve(mat, div)
     
-def project(u,v, sizeX, sizeY, mat, h):
-    _u = set_solid_boundary(u, sizeX, sizeY)
-    _v = set_solid_boundary(v, sizeX, sizeY)
+def project(u,v, sizeX, sizeY, mat, h, boundary_func):
+    _u, _v = set_boundary(u,v, sizeX, sizeY, boundary_func)
     p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]
 
     gradP_u = []
@@ -107,12 +112,12 @@ def project(u,v, sizeX, sizeY, mat, h):
             
     new_u = _u - gradP_u
     new_v = _v - gradP_v
-    return set_solid_boundary(new_u, sizeX, sizeY), set_solid_boundary(new_v,sizeX, sizeY)
+    return set_boundary(new_u, new_v, sizeX, sizeY,boundary_func)
 
 def dissipate(s,a,dt):
     return s/(1+dt*a)
 
-def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff):
+def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None):
     ## Vstep
     # advection step
     new_u = advectCentered(_u, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
@@ -126,7 +131,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
         _v = diffuse(_v, _vDiff_mat)[..., 0]
 
     # projection step
-    _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h)
+    _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h, boundary_func)
 
 
     ## Sstep
@@ -142,9 +147,9 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
 
     return _u, _v, _s
 
-def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff):
+def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None):
     for _ in tqdm(range(1, n_iter+1), desc = "Simulating...."):
-        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff)
+        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff,boundary_func)
         _u = new_u
         _v = new_v
         _s = new_s

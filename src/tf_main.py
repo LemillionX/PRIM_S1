@@ -102,39 +102,6 @@ dt = tf.convert_to_tensor(TIMESTEP, dtype=tf.float32)
 COORDS_X = tf.convert_to_tensor(COORDS_X, dtype=tf.float32)
 COORDS_Y = tf.convert_to_tensor(COORDS_Y, dtype=tf.float32)
 
-
-##############################################################
-#               Solving
-##############################################################
-def simulate(_t, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff):
-    ## Vstep
-    # advection step
-    new_u = slv.advectCentered(_u, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
-    new_v = slv.advectCentered(_v, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
-    _u = new_u
-    _v = new_v
-
-    # diffusion step
-    if _visc > 0:
-        _u = slv.diffuse(_u, _vDiff_mat)[..., 0]
-        _v = slv.diffuse(_v, _vDiff_mat)[..., 0]
-
-    # projection step
-    _u, _v = slv.project(_u, _v, _sizeX, _sizeY, _mat, _h)
-
-    ## Sstep
-    # advection step
-    _s = slv.advectCentered(_s, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
-    
-    # diffusion step
-    if _kDiff > 0:
-        _s = slv.diffuse(_s, _sDiff_mat)
-
-    # dissipation step
-    _s = slv.dissipate(_s, _alpha, _dt)
-    return _u, _v, _s
-
-
 ##############################################################
 #               Plot Animation
 #############################################################
@@ -153,7 +120,7 @@ print(SAVE_PATH)
 pbar = tqdm(range(1, N_FRAMES+1), desc = "Simulating....")
 plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(0)))
 for t in pbar:
-    velocity_field_x, velocity_field_y, density_field = simulate(t, velocity_field_x, velocity_field_y, density_field ,SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, laplace_mat, ALPHA, velocity_diff_mat, VISC, scalar_diffuse_mat, K_DIFF)
+    velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, laplace_mat, ALPHA, velocity_diff_mat, VISC, scalar_diffuse_mat, K_DIFF,boundary_func=None)
     # Viz update
     u_viz = viz.tensorToGrid(velocity_field_x.numpy(), SIZE_X, SIZE_Y)
     v_viz = viz.tensorToGrid(velocity_field_y.numpy(), SIZE_X, SIZE_Y)

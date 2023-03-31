@@ -14,7 +14,7 @@ from tqdm import tqdm
 SIZE_X = 7          # number of elements in the x-axis
 SIZE_Y = 7          # number of elements in the y-axis
 TIMESTEP = 0.025
-N_FRAMES = 200     # number of frames to draw
+N_FRAMES = 100     # number of frames to draw
 GRID_MIN = -1
 GRID_MAX = 1
 D = (GRID_MAX-GRID_MIN)/SIZE_X

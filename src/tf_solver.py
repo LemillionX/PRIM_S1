@@ -76,17 +76,9 @@ def diffuse(f, mat):
     return tf.linalg.solve(mat,_f)
 
 def solvePressure(u, v, sizeX, sizeY, h, mat):
-    div = []
-    for j in range(sizeY):
-        for i in range(sizeX):
-            s = 0
-            if (i>1) and (i<sizeX-1):
-                s+= u[indexTo1D(i+1,j, sizeX)].numpy() - u[indexTo1D(i-1,j, sizeX)].numpy() 
-            if (j>1) and (j<sizeY-1):
-                s+= v[indexTo1D(i,j+1, sizeX)].numpy()  - v[indexTo1D(i,j-1, sizeX)].numpy() 
-            div.append(s)
-
-    div = (0.5/h)*tf.convert_to_tensor(div, dtype=tf.float32)
+    dx = tf.roll(u, shift=-1, axis=0) - tf.roll(u, shift=1, axis=0)
+    dy = tf.roll(v, shift=-sizeX, axis=0) - tf.roll(v, shift=sizeX, axis=0)
+    div = (dx + dy)*0.5/h
     if tf.rank(div).numpy() < 2:
         div = tf.expand_dims(div, 1)
     return tf.linalg.solve(mat, div)

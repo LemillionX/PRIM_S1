@@ -199,5 +199,9 @@ if len(sys.argv) > 1:
         print(u1)
         print(u2)
 
+    if sys.argv[1] == "data":
+        print("Python v", sys.version)
+        print("TensorFlow v", tf.__version__)
+
          
 

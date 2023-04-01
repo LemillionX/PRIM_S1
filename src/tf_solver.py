@@ -4,23 +4,22 @@ import sys
 from termcolor import colored
 from tqdm import tqdm
 
+@tf.function
 def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     new_u = tf.identity(u)
     new_v = tf.identity(v)
-    
     mask = tf.logical_or(tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) % sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) % sizeX, sizeX-1)),
                      tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) // sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) // sizeX, sizeY-1)))
-    indices = tf.where(mask)[:, 0]
-    
-    new_u = tf.tensor_scatter_nd_update(new_u, tf.expand_dims(indices, axis=1), tf.constant(b, shape=indices.shape[0], dtype=tf.float32))
-    new_v = tf.tensor_scatter_nd_update(new_v, tf.expand_dims(indices, axis=1), tf.constant(b, shape=indices.shape[0], dtype=tf.float32))
-    
+    indices = tf.where(mask)
+    indices.set_shape((2*(sizeX + sizeY-2), 1))
+    new_u = tf.tensor_scatter_nd_update(new_u, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
+    new_v = tf.tensor_scatter_nd_update(new_v, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
     return new_u, new_v
 
 def indexTo1D(i,j, sizeX):
     return j*sizeX+i
 
-
+@tf.function
 def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     if boundary_func is None:
         return set_solid_boundary(u,v,sizeX,sizeY,b)
@@ -47,10 +46,11 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
 
     return t_i0*t_j0*p00 + t_i0*t_j1*p01 + t_i1*t_j0*p10 + t_i1*t_j1*p11
 
+@tf.function
 def advectCentered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     traced_x = tf.clip_by_value(coords_x - dt*u, offset + 0.5*d, offset + (sizeX-0.5)*d )
     traced_y = tf.clip_by_value(coords_y - dt*v, offset + 0.5*d, offset + (sizeY-0.5)*d)
-    u1 = tf.map_fn(fn=lambda x: sampleAt(x[0],x[1],f,sizeX,sizeY, offset, d), elems=(traced_x, traced_y), dtype=tf.float32)
+    u1 = tf.vectorized_map(fn=lambda x: sampleAt(x[0],x[1],f,sizeX,sizeY, offset, d), elems=(traced_x, traced_y))
     # return set_boundary(u1, sizeX, sizeY)
     return u1
 
@@ -72,17 +72,17 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
 
 def diffuse(f, mat):
     if tf.rank(f).numpy() < 2:
-        _f = tf.expand_dims(f, 1)
-    return tf.linalg.solve(mat,_f)
+        f = tf.expand_dims(f, 1)
+    return tf.linalg.solve(mat,f)
 
 def solvePressure(u, v, sizeX, sizeY, h, mat):
     dx = tf.roll(u, shift=-1, axis=0) - tf.roll(u, shift=1, axis=0)
     dy = tf.roll(v, shift=-sizeX, axis=0) - tf.roll(v, shift=sizeX, axis=0)
     div = (dx + dy)*0.5/h
-    if tf.rank(div).numpy() < 2:
+    if tf.rank(div) < 2:
         div = tf.expand_dims(div, 1)
     return tf.linalg.solve(mat, div)
-    
+
 def project(u,v, sizeX, sizeY, mat, h, boundary_func):
     _u, _v = set_boundary(u,v, sizeX, sizeY, boundary_func)
     p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]

@@ -60,11 +60,11 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
         i = it%sizeX
         j = it//sizeX
         mat[it,it] = b
-        if (i>1):
+        if (i>0):
             mat[it,it-1] = a
         if (i<sizeX-1):
             mat[it, it+1] = a
-        if (j>1):
+        if (j>0):
             mat[it,it-sizeX] = a
         if (j<sizeY-1):
             mat[it, it+sizeX] = a       

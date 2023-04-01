@@ -29,6 +29,7 @@ VORTEX_CENTER = np.array([GRID_MIN + D*(int(SIZE_X/2) + 0.5), GRID_MIN + D*(int(
 #################################################################
 # Initialisation
 #################################################################
+RESOLUTION_LIMIT = 30
 # Setup grids
 COORDS_X = []   # x-coordinates of position
 COORDS_Y = []   # y-coordinates of position
@@ -87,15 +88,18 @@ if not os.path.isdir(os.path.join(DIR_PATH, DENSITY_NAME)):
 
 print(SAVE_PATH)
 pbar = tqdm(range(1, N_FRAMES+1), desc = "Simulating....")
-plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(0)))
+if SIZE_X < RESOLUTION_LIMIT:
+    plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(0)))
 for t in pbar:
     velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, laplace_mat, ALPHA, velocity_diff_mat, VISC, scalar_diffuse_mat, K_DIFF)
     # Viz update
     viz.draw_density(viz.tensorToGrid(density_field, SIZE_X, SIZE_Y), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(t)))
-    u_viz = viz.tensorToGrid(velocity_field_x, SIZE_X, SIZE_Y)
-    v_viz = viz.tensorToGrid(velocity_field_y, SIZE_X, SIZE_Y)
-    Q.set_UVC(u_viz,v_viz)
-    plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(t)))
+    if SIZE_X < RESOLUTION_LIMIT:
+        u_viz = viz.tensorToGrid(velocity_field_x, SIZE_X, SIZE_Y)
+        v_viz = viz.tensorToGrid(velocity_field_y, SIZE_X, SIZE_Y)
+        Q.set_UVC(u_viz,v_viz)
+        plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(t)))
 
-viz.frames2gif(os.path.join(DIR_PATH, FOLDER_NAME), os.path.join(DIR_PATH, FOLDER_NAME+".gif"), FPS)
+if SIZE_X < RESOLUTION_LIMIT:
+    viz.frames2gif(os.path.join(DIR_PATH, FOLDER_NAME), os.path.join(DIR_PATH, FOLDER_NAME+".gif"), FPS)
 viz.frames2gif(os.path.join(DIR_PATH, DENSITY_NAME), os.path.join(DIR_PATH, DENSITY_NAME+".gif"), FPS)

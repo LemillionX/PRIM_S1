@@ -7,11 +7,12 @@ def indexTo1D(i,j,sizeX):
 def set_solid_boundary(u,v, sizeX, sizeY, b=0):
     new_u = np.copy(u)
     new_v = np.copy(v)
-    for i in range(sizeX):
-        for j in range(sizeY):
-            if (i==0) or (i==sizeX-1) or (j==0) or (j==sizeY-1):
-                new_u[indexTo1D(i,j,sizeX)] = b
-                new_v[indexTo1D(i,j,sizeX)] = b
+
+    mask = np.logical_or(np.logical_or(np.equal(np.arange(sizeX*sizeY) % sizeX, 0), np.equal(np.arange(sizeX*sizeY) % sizeX, sizeX-1)),
+                        np.logical_or(np.equal(np.arange(sizeX*sizeY) // sizeX, 0), np.equal(np.arange(sizeX*sizeY) // sizeX, sizeY-1)))
+    indices = np.where(mask)
+    new_u[indices] = b
+    new_v[indices] = b
     return new_u, new_v
 
 def set_boundary(u,v, sizeX,sizeY,boundary_func=None,b=0):
@@ -54,11 +55,11 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
         i = it%sizeX
         j = it//sizeX
         mat[it,it]=b
-        if (i>1):
+        if (i>0):
             mat[it,it-1]=a
         if (i<sizeX-1):
             mat[it,it+1]=a
-        if (j>1):
+        if (j>0):
             mat[it,it-sizeX]=a
         if (j<sizeY-1):
             mat[it,it+sizeX]=a
@@ -68,40 +69,19 @@ def diffuse(f,mat):
     return np.linalg.solve(mat,f)
 
 def solvePressure(u,v,sizeX,sizeY,h,mat):
-    div = []
-    for j in range(sizeY):
-        for i in range(sizeX):
-            s = 0
-            if (i>0) and (i<sizeX-1):
-                s+= u[indexTo1D(i+1,j, sizeX)]- u[indexTo1D(i-1,j, sizeX)]
-            if (j>0) and (j<sizeY-1):
-                s+= v[indexTo1D(i,j+1, sizeX)] - v[indexTo1D(i,j-1, sizeX)]
-            div.append(s)
-    div = (0.5/h)*np.array(div)
+    dx = np.roll(u, shift=-1, axis=0) - np.roll(u, shift=1, axis=0)
+    dy = np.roll(v, shift=-sizeX, axis=0) - np.roll(v, shift=sizeX, axis=0)
+    div = (dx+dy)*0.5/h
     return np.linalg.solve(mat,div)
 
 def project(u,v,sizeX,sizeY,mat,h,boundary_func):
     _u,_v = set_boundary(u,v, sizeX, sizeY,boundary_func)
     p = solvePressure(_u,_v,sizeX,sizeY,h, mat)
-    gradP_u = []
-    gradP_v = []
-    for j in range(sizeY):
-        for i in range(sizeX):
-            if (i>0) and (i < sizeX-1):
-                gradP_u.append(p[indexTo1D(i+1,j,sizeX)] - p [indexTo1D(i-1, j, sizeX)])
-            else:
-                gradP_u.append(0)
-            if (j>0) and (j < sizeY-1):
-                gradP_v.append(p[indexTo1D(i,j+1,sizeX)] - p[indexTo1D(i,j-1,sizeX)])
-            else:
-                gradP_v.append(0)
-
-    gradP_u = (0.5/h)*np.array(gradP_u)
-    gradP_v = (0.5/h)*np.array(gradP_v)
+    gradP_u = (0.5/h)*(np.roll(p, shift=-1, axis=0) - np.roll(p, shift=1, axis=0))
+    gradP_v = (0.5/h)*(np.roll(p, shift=-sizeX, axis=0) - np.roll(p, shift=sizeX, axis=0))
     new_u = _u - gradP_u
     new_v = _v - gradP_v
-    new_u, new_v = set_boundary(new_u, new_v, sizeX, sizeY, boundary_func)
-    return new_u, new_v
+    return set_boundary(new_u, new_v, sizeX, sizeY, boundary_func)
 
 def dissipate(s,a,dt):
     return s/(1+dt*a)

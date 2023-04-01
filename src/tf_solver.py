@@ -87,20 +87,8 @@ def project(u,v, sizeX, sizeY, mat, h, boundary_func):
     _u, _v = set_boundary(u,v, sizeX, sizeY, boundary_func)
     p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]
 
-    gradP_u = []
-    gradP_v = []
-    for j in range(sizeY):
-        for i in range(sizeX):
-            if (i>1) and (i < sizeX-1):
-                gradP_u.append(p[indexTo1D(i+1,j,sizeX)] - p [indexTo1D(i-1, j, sizeX)])
-            else:
-                gradP_u.append(0)
-            if (j>1) and (j < sizeY-1):
-                gradP_v.append(p[indexTo1D(i,j+1,sizeX)] - p[indexTo1D(i,j-1,sizeX)])
-            else:
-                gradP_v.append(0)
-    gradP_u = (0.5/h)*tf.convert_to_tensor(gradP_u)
-    gradP_v = (0.5/h)*tf.convert_to_tensor(gradP_v)
+    gradP_u = (0.5/h)*(tf.roll(p, shift=-1, axis=0) - tf.roll(p, shift=1, axis=0))
+    gradP_v = (0.5/h)*(tf.roll(p, shift=-sizeX, axis=0) - tf.roll(p, shift=sizeX, axis=0))
             
     new_u = _u - gradP_u
     new_v = _v - gradP_v

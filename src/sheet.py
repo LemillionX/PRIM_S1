@@ -100,6 +100,54 @@ def compute_divergence2(u, v, sizeX, sizeY, h):
         div = tf.expand_dims(div, 1)
     return div
 
+def solvePressure(u, v, sizeX, sizeY, h, mat):
+    dx = tf.roll(u, shift=-1, axis=0) - tf.roll(u, shift=1, axis=0)
+    dy = tf.roll(v, shift=-sizeX, axis=0) - tf.roll(v, shift=sizeX, axis=0)
+    div = (dx + dy)*0.5/h
+    if tf.rank(div).numpy() < 2:
+        div = tf.expand_dims(div, 1)
+    return tf.linalg.solve(mat, div)
+
+
+def project1(u,v, sizeX, sizeY, mat, h, boundary_func):
+    _u, _v = set_solid_boundary(u,v, sizeX, sizeY, boundary_func)
+    p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]
+    gradP_u = []
+    gradP_v = []
+    for j in range(sizeY):
+        for i in range(sizeX):
+            if (i>0) and (i < sizeX-1):
+                gradP_u.append(p[indexTo1D(i+1,j,sizeX)] - p [indexTo1D(i-1, j, sizeX)])
+            else:
+                gradP_u.append(0)
+            if (j>0) and (j < sizeY-1):
+                gradP_v.append(p[indexTo1D(i,j+1,sizeX)] - p[indexTo1D(i,j-1,sizeX)])
+            else:
+                gradP_v.append(0)
+    gradP_u = (0.5/h)*tf.convert_to_tensor(gradP_u)
+    gradP_v = (0.5/h)*tf.convert_to_tensor(gradP_v)
+            
+    if tf.rank(gradP_u) < tf.rank(u):
+        gradP_u = tf.expand_dims(gradP_u, 1)
+        gradP_v = tf.expand_dims(gradP_v, 1)
+
+    new_u = _u - gradP_u
+    new_v = _v - gradP_v
+    return set_solid_boundary(new_u, new_v, sizeX, sizeY,boundary_func)
+
+
+def project2(u,v, sizeX, sizeY, mat, h, boundary_func):
+    _u, _v = set_solid_boundary(u,v, sizeX, sizeY, boundary_func)
+    p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]
+    gradP_u = (0.5/h)*(tf.roll(p, shift=-1, axis=0) - tf.roll(p, shift=1, axis=0))
+    gradP_v = (0.5/h)*(tf.roll(p, shift=-sizeX, axis=0) - tf.roll(p, shift=sizeX, axis=0))
+    if tf.rank(gradP_u) < tf.rank(u):
+        gradP_u = tf.expand_dims(gradP_u, 1)
+        gradP_v = tf.expand_dims(gradP_v, 1)
+    new_u = _u - gradP_u
+    new_v = _v - gradP_v
+    return set_solid_boundary(new_u, new_v, sizeX, sizeY,boundary_func)
+
 if len(sys.argv) > 1:
     size = 4
 
@@ -135,8 +183,21 @@ if len(sys.argv) > 1:
 
         div1 = compute_divergence1(u, v, size, size, h)
         div2 = compute_divergence2(u, v, size, size, h)
-        div1, div2 = set_solid_boundary(div1, div2, size, size) 
+        # div1, div2 = set_solid_boundary(div1, div2, size, size) 
         print("div 1 = ", div1)
         print("div 2 = ", div2)
 
+    if sys.argv[1] == "project":
+        h = 2/size
+        _u = tf.random.normal((size*size,1))
+        _v = tf.random.normal((size*size,1))
+        u,v = set_solid_boundary(_u,  _v, size, size)
+        mat = tf.convert_to_tensor(build_laplacian_matrix(size, size, 1/(h*h), -4/(h*h)), dtype=tf.float32)
+
+        u1, v1 = project1(u, v, size, size, mat, h, 0)
+        u2, v2 = project2(u, v, size, size, mat, h, 0)
+        print(u1)
+        print(u2)
+
+         
 

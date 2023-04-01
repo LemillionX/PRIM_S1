@@ -72,9 +72,9 @@ def solvePressure(u,v,sizeX,sizeY,h,mat):
     for j in range(sizeY):
         for i in range(sizeX):
             s = 0
-            if (i>1) and (i<sizeX-1):
+            if (i>0) and (i<sizeX-1):
                 s+= u[indexTo1D(i+1,j, sizeX)]- u[indexTo1D(i-1,j, sizeX)]
-            if (j>1) and (j<sizeY-1):
+            if (j>0) and (j<sizeY-1):
                 s+= v[indexTo1D(i,j+1, sizeX)] - v[indexTo1D(i,j-1, sizeX)]
             div.append(s)
     div = (0.5/h)*np.array(div)
@@ -87,11 +87,11 @@ def project(u,v,sizeX,sizeY,mat,h,boundary_func):
     gradP_v = []
     for j in range(sizeY):
         for i in range(sizeX):
-            if (i>1) and (i < sizeX-1):
+            if (i>0) and (i < sizeX-1):
                 gradP_u.append(p[indexTo1D(i+1,j,sizeX)] - p [indexTo1D(i-1, j, sizeX)])
             else:
                 gradP_u.append(0)
-            if (j>1) and (j < sizeY-1):
+            if (j>0) and (j < sizeY-1):
                 gradP_v.append(p[indexTo1D(i,j+1,sizeX)] - p[indexTo1D(i,j-1,sizeX)])
             else:
                 gradP_v.append(0)

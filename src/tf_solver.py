@@ -16,6 +16,7 @@ def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     new_v = tf.tensor_scatter_nd_update(new_v, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
     return new_u, new_v
 
+@tf.function
 def indexTo1D(i,j, sizeX):
     return j*sizeX+i
 
@@ -26,6 +27,7 @@ def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     else:
         return boundary_func(u,v,sizeX,sizeY,b)
 
+@tf.function
 def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     _x = (x - offset)/d - 0.5
     _y = (y - offset)/d - 0.5
@@ -34,10 +36,10 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     i1 = tf.clip_by_value(i0+1, 0, sizeX-1)
     j1 = tf.clip_by_value(j0+1, 0, sizeY-1)
 
-    p00 = data[tf.cast(indexTo1D(i0,j0,sizeX), tf.int32)]
-    p01 = data[tf.cast(indexTo1D(i0,j1,sizeX), tf.int32)]
-    p10 = data[tf.cast(indexTo1D(i1,j0,sizeX), tf.int32)]
-    p11 = data[tf.cast(indexTo1D(i1,j1,sizeX), tf.int32)]
+    p00 = tf.gather(data, tf.cast(indexTo1D(i0,j0,sizeX), tf.int32))
+    p01 = tf.gather(data, tf.cast(indexTo1D(i0,j1,sizeX), tf.int32))
+    p10 = tf.gather(data, tf.cast(indexTo1D(i1,j0,sizeX), tf.int32))
+    p11 = tf.gather(data, tf.cast(indexTo1D(i1,j1,sizeX), tf.int32))
 
     t_i0 = (offset + (i0+1+0.5)*d -x)/d
     t_j0 = (offset + (j0+1+0.5)*d -y)/d

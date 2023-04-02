@@ -120,7 +120,7 @@ print("[step 0] : gradient norm = ",tf.norm(grad).numpy())
 
 # Optimisation
 count = 0
-while (count < 100 and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
+while (count < 500 and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
     # alpha = 0.01*abs(tf.random.normal([1]))
     old_loss = loss
     alpha = tf.constant(1.1/np.sqrt(count+1,),dtype = tf.float32)

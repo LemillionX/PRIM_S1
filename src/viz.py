@@ -35,6 +35,8 @@ def tensorToGrid(u, sizeX, sizeY):
     grid = np.zeros((sizeX, sizeY))
     for j in range(sizeY):
         for i in range(sizeX):
+            if (i + sizeX*j > sizeX*sizeY-1):
+                print(i+sizeX*j)
             grid[j,i] = u[i + sizeX*j]
     return grid
 

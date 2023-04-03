@@ -48,12 +48,12 @@ density_init=[
 
 target_density =[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
- 0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
@@ -99,8 +99,8 @@ for j in range(SIZE_Y):
         point_y = GRID_MIN+(j+0.5)*D
         COORDS_X.append(point_x)
         COORDS_Y.append(point_y)
-        u_init.append(-10)
-        v_init.append(-10)
+        u_init.append(-7)
+        v_init.append(-7)
 
 
 
@@ -140,11 +140,11 @@ print("[step 0] : gradient norm = ",tf.norm(grad).numpy())
 
 # Optimisation
 count = 0
-while (count < MAX_ITER and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
+while (count < MAX_ITER and loss > 0.1 and tf.norm(grad).numpy() > 1e-06):
     # alpha = 10*abs(tf.random.normal([1]))
     old_loss = loss
     # alpha = tf.constant(1.1/np.sqrt(count+1,),dtype = tf.float32)
-    alpha = tf.constant(20,dtype = tf.float32)
+    alpha = tf.constant(25,dtype = tf.float32)
     density_field = tf.convert_to_tensor(density_init, dtype=tf.float32)
     trained_vel_x = trained_vel_x - alpha*grad[0]
     trained_vel_y = trained_vel_y - alpha*grad[1]

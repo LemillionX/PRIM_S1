@@ -4,8 +4,7 @@ import sys
 from termcolor import colored
 from tqdm import tqdm
 
-@tf.function
-def set_solid_boundary(u, v, sizeX, sizeY, b=0):
+def set_wall_boundary(u, v, sizeX, sizeY, b=0):
     new_u = tf.identity(u)
     new_v = tf.identity(v)
     mask = tf.logical_or(tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) % sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) % sizeX, sizeX-1)),
@@ -16,11 +15,34 @@ def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     new_v = tf.tensor_scatter_nd_update(new_v, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
     return new_u, new_v
 
+def set_solid_boundary(u,v,sizeX,sizeY,b=0):
+    new_u = tf.identity(u)
+    new_v = tf.identity(v)
+    mask_down = tf.expand_dims(tf.range(0, sizeX, 1),1)
+    mask_up = tf.expand_dims(tf.range(sizeX*(sizeY-1), sizeX*sizeY, 1), 1)
+    mask_left = tf.expand_dims(tf.range(0, sizeX*sizeY, sizeX),1)
+    mask_right = tf.expand_dims(tf.range(sizeX-1,sizeX*sizeY,sizeX), 1)
+
+    # Left boundary
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_left, tf.gather_nd(u, mask_left))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_left, tf.gather_nd(v, mask_left))
+    # Right boundary
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_right, tf.gather_nd(u, mask_right))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_right, tf.gather_nd(v, mask_right))
+    # Up boundary
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_up, tf.gather_nd(u, mask_up))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_up, tf.gather_nd(v, mask_up))
+    # Down boundary
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_down, tf.gather_nd(u, mask_down))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_down, tf.gather_nd(v, mask_down))
+    
+    return new_u, new_v
+
+
 @tf.function
 def indexTo1D(i,j, sizeX):
     return j*sizeX+i
 
-@tf.function
 def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     if boundary_func is None:
         return set_solid_boundary(u,v,sizeX,sizeY,b)
@@ -119,13 +141,14 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     ## Sstep
     # advection step
     _s = advectCentered(_s, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
-    
+
     # diffusion step
     if _kDiff > 0:
         _s = diffuse(_s, _sDiff_mat)
 
     # dissipation step
-    _s = dissipate(_s, _alpha, _dt)
+    if _alpha > 0:
+        _s = dissipate(_s, _alpha, _dt)
 
     return _u, _v, _s
 

@@ -4,6 +4,7 @@ import numpy as np
 import viz as viz
 import matplotlib.pyplot as plt
 import os
+import sys
 from tqdm import tqdm
 
 
@@ -36,12 +37,12 @@ density_init=[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
- 0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,   
- 0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,   
- 0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,   
+ 0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,   
+ 0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,   
+ 0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   
 ]
 
@@ -65,6 +66,7 @@ target_density =[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
+MAX_ITER = 100
 SIZE_X = int(np.sqrt(len(target_density)))          # number of elements in the x-axis
 SIZE_Y = int(np.sqrt(len(target_density)))           # number of elements in the y-axis
 assert (SIZE_X == SIZE_Y), "Dimensions on axis are different !"
@@ -97,8 +99,8 @@ for j in range(SIZE_Y):
         point_y = GRID_MIN+(j+0.5)*D
         COORDS_X.append(point_x)
         COORDS_Y.append(point_y)
-        u_init.append(1)
-        v_init.append(-1)
+        u_init.append(-10)
+        v_init.append(-10)
 
 
 
@@ -112,12 +114,11 @@ scalar_diffuse_mat = tf.convert_to_tensor(slv.build_laplacian_matrix(SIZE_X, SIZ
 
 ## Converting variables to tensors
 target_density = tf.convert_to_tensor(target_density, dtype=tf.float32)
-velocity_field_x = tf.convert_to_tensor(u_init, dtype=tf.float32)
-velocity_field_y = tf.convert_to_tensor(v_init, dtype=tf.float32)
+velocity_field_x, velocity_field_y = slv.set_boundary(tf.convert_to_tensor(u_init, dtype=tf.float32),tf.convert_to_tensor(v_init, dtype=tf.float32), SIZE_X, SIZE_Y, boundary_func)
 density_field = tf.convert_to_tensor(density_init, dtype=tf.float32)
 trained_density = tf.convert_to_tensor(density_init, dtype=tf.float32)
-trained_vel_x = tf.convert_to_tensor(velocity_field_x, dtype=tf.float32)
-trained_vel_y = tf.convert_to_tensor(velocity_field_y, dtype=tf.float32)
+trained_vel_x = tf.identity(velocity_field_x)
+trained_vel_y = tf.identity(velocity_field_y)
 dt = tf.convert_to_tensor(TIMESTEP, dtype=tf.float32)
 COORDS_X = tf.convert_to_tensor(COORDS_X, dtype=tf.float32)
 COORDS_Y = tf.convert_to_tensor(COORDS_Y, dtype=tf.float32)
@@ -139,10 +140,11 @@ print("[step 0] : gradient norm = ",tf.norm(grad).numpy())
 
 # Optimisation
 count = 0
-while (count < 100 and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
-    # alpha = 0.01*abs(tf.random.normal([1]))
+while (count < MAX_ITER and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
+    # alpha = 10*abs(tf.random.normal([1]))
     old_loss = loss
-    alpha = tf.constant(1.1/np.sqrt(count+1,),dtype = tf.float32)
+    # alpha = tf.constant(1.1/np.sqrt(count+1,),dtype = tf.float32)
+    alpha = tf.constant(20,dtype = tf.float32)
     density_field = tf.convert_to_tensor(density_init, dtype=tf.float32)
     trained_vel_x = trained_vel_x - alpha*grad[0]
     trained_vel_y = trained_vel_y - alpha*grad[1]
@@ -157,12 +159,17 @@ while (count < 100 and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
     if (count < 3) or (count%10 == 0):
         print("[step", count, "] : alpha = ", alpha.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
 
-print("After ", count, " iterations, the velocity field is " )
-print("x component = ")
-print(trained_vel_x)
-print("y component = ")
-print(trained_vel_y)
-print(" and gradient norm = ",tf.norm(grad).numpy())
+if (count < MAX_ITER):
+    print("[step", count, "] : alpha = ", alpha.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
+
+if len(sys.argv) > 1:
+    if sys.argv[1] == "debug":
+        print("After ", count, " iterations, the velocity field is " )
+        print("x component = ")
+        print(trained_vel_x)
+        print("y component = ")
+        print(trained_vel_y)
+        print(" and gradient norm = ",tf.norm(grad).numpy())
 
 
 #################################################################
@@ -191,7 +198,7 @@ if not os.path.isdir(SAVE_PATH):
 if not os.path.isdir(os.path.join(DIR_PATH, DENSITY_NAME)):
     os.mkdir(os.path.join(DIR_PATH, DENSITY_NAME))
 
-print(SAVE_PATH)
+print("Images will be saved here:", SAVE_PATH)
 pbar = tqdm(range(1, N_FRAMES*2+1), desc = "Simulating....")
 plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(0)))
 viz.draw_density(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).numpy(), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(0)))

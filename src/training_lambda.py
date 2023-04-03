@@ -4,6 +4,7 @@ import numpy as np
 import viz as viz
 import matplotlib.pyplot as plt
 import os
+import sys
 from tqdm import tqdm
 
 
@@ -43,11 +44,12 @@ target_density =[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
+MAX_ITER = 300
 SIZE_X = int(np.sqrt(len(target_density)))          # number of elements in the x-axis
 SIZE_Y = int(np.sqrt(len(target_density)))           # number of elements in the y-axis
 assert (SIZE_X == SIZE_Y), "Dimensions on axis are different !"
 TIMESTEP = 0.025
-N_FRAMES = 20     # number of frames to draw
+N_FRAMES = 20     # number of the frame where we want the shape to be matched
 GRID_MIN = -1
 GRID_MAX = 1
 D = (GRID_MAX-GRID_MIN)/SIZE_X
@@ -123,7 +125,7 @@ print("[step 0] : gradient norm = ",tf.norm(grad).numpy())
 
 # Optimisation
 count = 0
-while (count < 300 and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
+while (count < MAX_ITER and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
     # alpha = 0.01*abs(tf.random.normal([1]))
     old_loss = loss
     alpha = tf.constant(1.1/np.sqrt(count+1,),dtype = tf.float32)
@@ -141,31 +143,39 @@ while (count < 300 and loss > 0.1 and tf.norm(grad).numpy() > 0.01):
     if (count < 3) or (count%10 == 0):
         print("[step", count, "] : alpha = ", alpha.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
 
-print("After ", count, " iterations, the velocity field is " )
-print("x component = ")
-print(trained_vel_x)
-print("y component = ")
-print(trained_vel_y)
-print(" and gradient norm = ",tf.norm(grad).numpy())
+if (count < MAX_ITER and count > 0):
+    print("[step", count, "] : alpha = ", alpha.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
+
+if len(sys.argv) > 1:
+    if sys.argv[1] == "debug":
+        print("After ", count, " iterations, the velocity field is " )
+        print("x component = ")
+        print(trained_vel_x)
+        print("y component = ")
+        print(trained_vel_y)
+        print(" and gradient norm = ",tf.norm(grad).numpy())
+
 
 
 #################################################################
 #                       Testing                                 #
 #################################################################
 ## Plot initialisation 
-x,y = np.meshgrid(COORDS_X[:SIZE_X], COORDS_Y[::SIZE_X])
-fig, ax = plt.subplots(1, 1)
-ax.set_aspect('equal', adjustable='box')
-Q = ax.quiver(x, y, viz.tensorToGrid(u_init, SIZE_X, SIZE_Y), viz.tensorToGrid(v_init, SIZE_X, SIZE_Y), color='red', scale_units='width')
-
 density_field = tf.convert_to_tensor(density_init, dtype=tf.float32)
 velocity_field_x = trained_vel_x
 velocity_field_y = trained_vel_y
 
+## Plot initialisation 
+x,y = np.meshgrid(COORDS_X[:SIZE_X], COORDS_Y[::SIZE_X])
+fig, ax = plt.subplots(1, 1)
+ax.set_aspect('equal', adjustable='box')
+Q = ax.quiver(x, y, tf.reshape(velocity_field_x, shape=(SIZE_X, SIZE_Y)).numpy(), tf.reshape(velocity_field_y, shape=(SIZE_X, SIZE_Y)).numpy(), color='red', scale_units='width')
+
+
 ## Plot Animation
 OUTPUT_DIR = "output"
-FOLDER_NAME = "trained_velocity"
-DENSITY_NAME = "trained_density"
+FOLDER_NAME = "trained_velocity_lambda"
+DENSITY_NAME = "trained_density_lambda"
 DIR_PATH = os.path.join(os.getcwd().rsplit("\\",1)[0], OUTPUT_DIR)
 SAVE_PATH =  os.path.join(DIR_PATH, FOLDER_NAME)
 FPS = 20

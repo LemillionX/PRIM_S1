@@ -4,6 +4,7 @@ import sys
 from termcolor import colored
 from tqdm import tqdm
 
+@tf.function
 def set_wall_boundary(u, v, sizeX, sizeY, b=0):
     new_u = tf.identity(u)
     new_v = tf.identity(v)
@@ -15,6 +16,7 @@ def set_wall_boundary(u, v, sizeX, sizeY, b=0):
     new_v = tf.tensor_scatter_nd_update(new_v, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
     return new_u, new_v
 
+@tf.function
 def set_solid_boundary(u,v,sizeX,sizeY,b=0):
     new_u = tf.identity(u)
     new_v = tf.identity(v)
@@ -24,25 +26,61 @@ def set_solid_boundary(u,v,sizeX,sizeY,b=0):
     mask_right = tf.expand_dims(tf.range(sizeX-1,sizeX*sizeY,sizeX), 1)
 
     # Left boundary
-    new_u = tf.tensor_scatter_nd_update(new_u, mask_left, tf.gather_nd(u, mask_left))
-    new_v = tf.tensor_scatter_nd_update(new_v, mask_left, tf.gather_nd(v, mask_left))
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_left, -tf.gather_nd(tf.roll(u, shift=-1, axis=0), mask_left))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_left, tf.gather_nd(tf.roll(v, shift=-1, axis=0), mask_left))
     # Right boundary
-    new_u = tf.tensor_scatter_nd_update(new_u, mask_right, tf.gather_nd(u, mask_right))
-    new_v = tf.tensor_scatter_nd_update(new_v, mask_right, tf.gather_nd(v, mask_right))
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_right, -tf.gather_nd(tf.roll(u, shift=1, axis=0), mask_right))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_right, tf.gather_nd(tf.roll(v, shift=1, axis=0), mask_right))
     # Up boundary
-    new_u = tf.tensor_scatter_nd_update(new_u, mask_up, tf.gather_nd(u, mask_up))
-    new_v = tf.tensor_scatter_nd_update(new_v, mask_up, tf.gather_nd(v, mask_up))
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_up, tf.gather_nd(tf.roll(u, shift=sizeX, axis=0), mask_up))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_up, -tf.gather_nd(tf.roll(v, shift=sizeX, axis=0), mask_up))
     # Down boundary
-    new_u = tf.tensor_scatter_nd_update(new_u, mask_down, tf.gather_nd(u, mask_down))
-    new_v = tf.tensor_scatter_nd_update(new_v, mask_down, tf.gather_nd(v, mask_down))
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_down, tf.gather_nd(tf.roll(u, shift=-sizeX, axis=0), mask_down))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_down, -tf.gather_nd(tf.roll(v, shift=-sizeX, axis=0), mask_down))
     
+    # Upper-left corner
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((u[indexTo1D(0, sizeY-2, sizeX)] + u[indexTo1D(1, sizeY-1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((v[indexTo1D(0, sizeY-2, sizeX)] + v[indexTo1D(1, sizeY-1, sizeX)]),0))
+    # Upper-right corner
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((u[indexTo1D(sizeX-1, sizeY-2, sizeX)] + u[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((v[indexTo1D(sizeX-1, sizeY-2, sizeX)] + v[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
+    # Bottom-left corner
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((u[indexTo1D(0, 1, sizeX)] + u[indexTo1D(1, 0, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((v[indexTo1D(0, 1, sizeX)] + v[indexTo1D(1, 0, sizeX)]),0))
+    # Bottom-right corner
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((u[indexTo1D(sizeX-2, 0, sizeX)] + u[indexTo1D(sizeX-1, 1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((v[indexTo1D(sizeX-2, 0, sizeX)] + v[indexTo1D(sizeX-1, 1, sizeX)]),0))
+
+
     return new_u, new_v
 
+
+@tf.function
+def set_scalar_boundary(s, sizeX, sizeY):
+    new_s = tf.identity(s)
+    mask_down = tf.expand_dims(tf.range(0, sizeX, 1),1)
+    mask_up = tf.expand_dims(tf.range(sizeX*(sizeY-1), sizeX*sizeY, 1), 1)
+    mask_left = tf.expand_dims(tf.range(0, sizeX*sizeY, sizeX),1)
+    mask_right = tf.expand_dims(tf.range(sizeX-1,sizeX*sizeY,sizeX), 1)
+    new_s = tf.tensor_scatter_nd_update(new_s, mask_left, tf.gather_nd(tf.roll(s, shift=-1, axis=0), mask_left))
+    new_s = tf.tensor_scatter_nd_update(new_s, mask_right, tf.gather_nd(tf.roll(s, shift=1, axis=0), mask_right))
+    new_s = tf.tensor_scatter_nd_update(new_s, mask_up, tf.gather_nd(tf.roll(s, shift=sizeX, axis=0), mask_up))
+    new_s = tf.tensor_scatter_nd_update(new_s, mask_down, tf.gather_nd(tf.roll(s, shift=-sizeX, axis=0), mask_down))
+    # Upper-left corner
+    new_s = tf.tensor_scatter_nd_update(new_s, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((s[indexTo1D(0, sizeY-2, sizeX)] + s[indexTo1D(1, sizeY-1, sizeX)]),0))
+    # Upper-right corner
+    new_s = tf.tensor_scatter_nd_update(new_s, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((s[indexTo1D(sizeX-1, sizeY-2, sizeX)] + s[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
+    # Bottom-left corner
+    new_s = tf.tensor_scatter_nd_update(new_s, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((s[indexTo1D(0, 1, sizeX)] + s[indexTo1D(1, 0, sizeX)]),0))
+    # Bottom-right corner
+    new_s = tf.tensor_scatter_nd_update(new_s, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((s[indexTo1D(sizeX-2, 0, sizeX)] + s[indexTo1D(sizeX-1, 1, sizeX)]),0))
+    return new_s
 
 @tf.function
 def indexTo1D(i,j, sizeX):
     return j*sizeX+i
 
+@tf.function
 def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     if boundary_func is None:
         return set_solid_boundary(u,v,sizeX,sizeY,b)
@@ -103,6 +141,7 @@ def solvePressure(u, v, sizeX, sizeY, h, mat):
     dx = tf.roll(u, shift=-1, axis=0) - tf.roll(u, shift=1, axis=0)
     dy = tf.roll(v, shift=-sizeX, axis=0) - tf.roll(v, shift=sizeX, axis=0)
     div = (dx + dy)*0.5/h
+    div = set_scalar_boundary(div, sizeX, sizeY)
     if tf.rank(div) < 2:
         div = tf.expand_dims(div, 1)
     return tf.linalg.solve(mat, div)
@@ -110,6 +149,7 @@ def solvePressure(u, v, sizeX, sizeY, h, mat):
 def project(u,v, sizeX, sizeY, mat, h, boundary_func):
     _u, _v = set_boundary(u,v, sizeX, sizeY, boundary_func)
     p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]
+    p = set_scalar_boundary(p, sizeX, sizeY)
 
     gradP_u = (0.5/h)*(tf.roll(p, shift=-1, axis=0) - tf.roll(p, shift=1, axis=0))
     gradP_v = (0.5/h)*(tf.roll(p, shift=-sizeX, axis=0) - tf.roll(p, shift=sizeX, axis=0))
@@ -133,7 +173,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     if _visc > 0:
         _u = diffuse(_u, _vDiff_mat)[..., 0]
         _v = diffuse(_v, _vDiff_mat)[..., 0]
-
+        _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func) 
     # projection step
     _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h, boundary_func)
 
@@ -145,6 +185,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     # diffusion step
     if _kDiff > 0:
         _s = diffuse(_s, _sDiff_mat)
+        _s = set_scalar_boundary(_s, _sizeX, _sizeY)
 
     # dissipation step
     if _alpha > 0:

@@ -66,12 +66,12 @@ target_density =[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
-MAX_ITER = 100
+MAX_ITER = 300
 SIZE_X = int(np.sqrt(len(target_density)))          # number of elements in the x-axis
 SIZE_Y = int(np.sqrt(len(target_density)))           # number of elements in the y-axis
 assert (SIZE_X == SIZE_Y), "Dimensions on axis are different !"
 TIMESTEP = 0.025
-N_FRAMES = 80     # number of frames to draw
+N_FRAMES = 80     # number of the frame where we want the shape to be matched
 GRID_MIN = -1
 GRID_MAX = 1
 D = (GRID_MAX-GRID_MIN)/SIZE_X
@@ -99,8 +99,8 @@ for j in range(SIZE_Y):
         point_y = GRID_MIN+(j+0.5)*D
         COORDS_X.append(point_x)
         COORDS_Y.append(point_y)
-        u_init.append(-7)
-        v_init.append(-7)
+        u_init.append(-1)
+        v_init.append(-1)
 
 
 
@@ -136,15 +136,15 @@ with tf.GradientTape() as tape:
     _, _, density_field = slv.simulate(N_FRAMES, velocity_field_x, velocity_field_y, density_field ,SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, laplace_mat, ALPHA, velocity_diff_mat, VISC, scalar_diffuse_mat, K_DIFF, boundary_func, leave=False)
     loss = loss_quadratic(density_field, target_density)
 grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
-print("[step 0] : gradient norm = ",tf.norm(grad).numpy())
+print("[step 0] : loss = ", loss.numpy(),  "gradient norm = ",tf.norm(grad).numpy())
 
 # Optimisation
 count = 0
-while (count < MAX_ITER and loss > 0.1 and tf.norm(grad).numpy() > 1e-06):
+while (count < MAX_ITER and loss > 0.1 and tf.norm(grad).numpy() > 1e-04):
     # alpha = 10*abs(tf.random.normal([1]))
     old_loss = loss
-    # alpha = tf.constant(1.1/np.sqrt(count+1,),dtype = tf.float32)
-    alpha = tf.constant(25,dtype = tf.float32)
+    alpha = tf.constant(10.1/np.sqrt(count+1,),dtype = tf.float32)
+    # alpha = tf.constant(25,dtype = tf.float32)
     density_field = tf.convert_to_tensor(density_init, dtype=tf.float32)
     trained_vel_x = trained_vel_x - alpha*grad[0]
     trained_vel_y = trained_vel_y - alpha*grad[1]
@@ -159,7 +159,7 @@ while (count < MAX_ITER and loss > 0.1 and tf.norm(grad).numpy() > 1e-06):
     if (count < 3) or (count%10 == 0):
         print("[step", count, "] : alpha = ", alpha.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
 
-if (count < MAX_ITER):
+if (count < MAX_ITER and count > 0):
     print("[step", count, "] : alpha = ", alpha.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
 
 if len(sys.argv) > 1:

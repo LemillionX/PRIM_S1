@@ -2,8 +2,8 @@ import tf_train as train
 import numpy as np
 
 FILENAME = {}
-FILENAME["velocity"] = "trained_velocity_lambda"
-FILENAME["density"] = "trained_density_lambda"
+FILENAME["velocity"] = "trained_velocity"
+FILENAME["density"] = "trained_density"
 
 density_init=[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   

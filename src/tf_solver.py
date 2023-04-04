@@ -5,7 +5,7 @@ from termcolor import colored
 from tqdm import tqdm
 
 @tf.function
-def set_wall_boundary(u, v, sizeX, sizeY, b=0):
+def set_absorbing_boundary(u, v, sizeX, sizeY, b=0):
     new_u = tf.identity(u)
     new_v = tf.identity(v)
     mask = tf.logical_or(tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) % sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) % sizeX, sizeX-1)),
@@ -26,30 +26,30 @@ def set_solid_boundary(u,v,sizeX,sizeY,b=0):
     mask_right = tf.expand_dims(tf.range(sizeX-1,sizeX*sizeY,sizeX), 1)
 
     # Left boundary
-    new_u = tf.tensor_scatter_nd_update(new_u, mask_left, -tf.gather_nd(tf.roll(u, shift=-1, axis=0), mask_left))
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_left, tf.abs(tf.gather_nd(tf.roll(u, shift=-1, axis=0), mask_left)))
     new_v = tf.tensor_scatter_nd_update(new_v, mask_left, tf.gather_nd(tf.roll(v, shift=-1, axis=0), mask_left))
     # Right boundary
-    new_u = tf.tensor_scatter_nd_update(new_u, mask_right, -tf.gather_nd(tf.roll(u, shift=1, axis=0), mask_right))
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_right, -tf.abs(tf.gather_nd(tf.roll(u, shift=1, axis=0), mask_right)))
     new_v = tf.tensor_scatter_nd_update(new_v, mask_right, tf.gather_nd(tf.roll(v, shift=1, axis=0), mask_right))
     # Up boundary
     new_u = tf.tensor_scatter_nd_update(new_u, mask_up, tf.gather_nd(tf.roll(u, shift=sizeX, axis=0), mask_up))
-    new_v = tf.tensor_scatter_nd_update(new_v, mask_up, -tf.gather_nd(tf.roll(v, shift=sizeX, axis=0), mask_up))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_up, -tf.abs(tf.gather_nd(tf.roll(v, shift=sizeX, axis=0), mask_up)))
     # Down boundary
     new_u = tf.tensor_scatter_nd_update(new_u, mask_down, tf.gather_nd(tf.roll(u, shift=-sizeX, axis=0), mask_down))
-    new_v = tf.tensor_scatter_nd_update(new_v, mask_down, -tf.gather_nd(tf.roll(v, shift=-sizeX, axis=0), mask_down))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_down, tf.abs(tf.gather_nd(tf.roll(v, shift=-sizeX, axis=0), mask_down)))
     
     # Upper-left corner
-    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((u[indexTo1D(0, sizeY-2, sizeX)] + u[indexTo1D(1, sizeY-1, sizeX)]),0))
-    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((v[indexTo1D(0, sizeY-2, sizeX)] + v[indexTo1D(1, sizeY-1, sizeX)]),0))
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(0, sizeY-2, sizeX)] + new_u[indexTo1D(1, sizeY-1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(0, sizeY-2, sizeX)] + new_v[indexTo1D(1, sizeY-1, sizeX)]),0))
     # Upper-right corner
-    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((u[indexTo1D(sizeX-1, sizeY-2, sizeX)] + u[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
-    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((v[indexTo1D(sizeX-1, sizeY-2, sizeX)] + v[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(sizeX-1, sizeY-2, sizeX)] + new_u[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(sizeX-1, sizeY-2, sizeX)] + new_v[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
     # Bottom-left corner
-    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((u[indexTo1D(0, 1, sizeX)] + u[indexTo1D(1, 0, sizeX)]),0))
-    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((v[indexTo1D(0, 1, sizeX)] + v[indexTo1D(1, 0, sizeX)]),0))
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(0, 1, sizeX)] + new_u[indexTo1D(1, 0, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(0, 1, sizeX)] + new_v[indexTo1D(1, 0, sizeX)]),0))
     # Bottom-right corner
-    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((u[indexTo1D(sizeX-2, 0, sizeX)] + u[indexTo1D(sizeX-1, 1, sizeX)]),0))
-    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((v[indexTo1D(sizeX-2, 0, sizeX)] + v[indexTo1D(sizeX-1, 1, sizeX)]),0))
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(sizeX-2, 0, sizeX)] + new_u[indexTo1D(sizeX-1, 1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(sizeX-2, 0, sizeX)] + new_v[indexTo1D(sizeX-1, 1, sizeX)]),0))
 
 
     return new_u, new_v

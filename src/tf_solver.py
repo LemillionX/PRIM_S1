@@ -4,6 +4,11 @@ import sys
 from termcolor import colored
 from tqdm import tqdm
 
+
+@tf.function
+def addSource(s, value=1.0, indices=None):
+    return tf.tensor_scatter_nd_update(s, indices, tf.constant(value, shape=[indices.shape[0]], dtype=tf.float32))
+
 @tf.function
 def set_absorbing_boundary(u, v, sizeX, sizeY, b=0):
     new_u = tf.identity(u)
@@ -129,7 +134,7 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
         if (j>0):
             mat[it,it-sizeX] = a
         if (j<sizeY-1):
-            mat[it, it+sizeX] = a       
+            mat[it, it+sizeX] = a
     return mat
 
 def diffuse(f, mat):
@@ -161,7 +166,7 @@ def project(u,v, sizeX, sizeY, mat, h, boundary_func):
 def dissipate(s,a,dt):
     return s/(1+dt*a)
 
-def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None):
+def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
     ## Vstep
     # advection step
     new_u = advectCentered(_u, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
@@ -179,6 +184,8 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
 
 
     ## Sstep
+    if (source is not None) and (t < source["time"]) :
+        _s = addSource(_s, source["value"], source["indices"])
     # advection step
     _s = advectCentered(_s, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
 
@@ -190,16 +197,31 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     # dissipation step
     if _alpha > 0:
         _s = dissipate(_s, _alpha, _dt)
-
+    
+    if (source is not None) and (t < source["time"]) :
+        _s = addSource(_s, source["value"], source["indices"])
     return _u, _v, _s
 
-def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, leave=True):
-    for _ in tqdm(range(1, n_iter+1), desc = "Simulating....", leave=leave):
-        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff,boundary_func)
+def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, leave=True):
+    for t in tqdm(range(1, n_iter+1), desc = "Simulating....", leave=leave):
+        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff,boundary_func, source, t)
         _u = new_u
         _v = new_v
         _s = new_s
     return new_u, new_v, new_s
+
+def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, keyframes=[], keyidx=[], boundary_func=None, source=None, leave=True):
+    _midVel = []
+    count = -1
+    for t in tqdm(range(1, n_iter+1), desc = "Simulating....", leave=leave):
+        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff,boundary_func, source, t)
+        _u = new_u
+        _v = new_v
+        _s = new_s
+        if t in keyframes:
+            count += 1
+            _midVel.append([tf.identity(_u[keyidx[count]]), tf.identity(_v[keyidx[count]])])
+    return new_u, new_v, new_s, _midVel
 
 if __name__ in ["__main__", "__builtin__"]:
     _sizeX = 5

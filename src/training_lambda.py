@@ -34,6 +34,7 @@ FLUID_SETTINGS["grid_max"] = 1
 FLUID_SETTINGS["diffusion_coeff"] = 0.0
 FLUID_SETTINGS["dissipation_rate"] = 0.0
 FLUID_SETTINGS["viscosity"] = 0.0
+FLUID_SETTINGS["source"] = None
 
 SIZE = int(np.sqrt(len(target_density)))
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE

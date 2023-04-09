@@ -6,8 +6,12 @@ import matplotlib.pyplot as plt
 import os
 from tqdm import tqdm
 
-def loss_quadratic(current, target):
-    return 0.5*(tf.norm(current - target)**2)
+def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
+    loss = 0.5*(tf.norm(current - target)**2) 
+    for t in range(len(midVel)):
+        for i in range(len(midVel[t])):
+            loss += 0.5*weights[t]*(tf.norm(currentMidVel[t][i] - midVel[t][i]))**2
+    return loss
 
 def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, _boundary, filename, constraint=None, debug=False):
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
@@ -24,9 +28,13 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     source = _fluidSettings["source"]
     keyframes = []
     keyidx = []
+    keyvalues = []
+    key_weights = []
     if constraint is not None:
         keyframes = constraint["keyframes"]
         keyidx = constraint["indices"]
+        keyvalues = [ [tf.convert_to_tensor(u[0], dtype=tf.float32), tf.convert_to_tensor(u[1], dtype=tf.float32)] for u in constraint["values"]]
+        key_weights = constraint["weights"]
 
     ## Pre-build matrices
     laplace_mat =  tf.convert_to_tensor(slv.build_laplacian_matrix(sizeX, sizeY, 1/( h*h), -4/( h*h)), dtype=tf.float32)
@@ -49,7 +57,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         velocity_field_x = tf.Variable(velocity_field_x)
         velocity_field_y = tf.Variable(velocity_field_y)
         _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
-        loss = loss_quadratic(density_field, target_density)
+        loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
     grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
     print("[step 0] : loss = ", loss.numpy(),  ", gradient norm = ",tf.norm(grad).numpy())
 
@@ -66,7 +74,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
             velocity_field_x = tf.Variable(trained_vel_x)
             velocity_field_y = tf.Variable(trained_vel_y)
             _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
-            loss = loss_quadratic(density_field, target_density)
+            loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
         count += 1
         grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
         # print(grad)

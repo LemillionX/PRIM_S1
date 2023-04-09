@@ -50,7 +50,7 @@ target_density =[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
-MAX_ITER = 10
+MAX_ITER = 100
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
 FLUID_SETTINGS["timestep"] = 0.025
@@ -60,9 +60,6 @@ FLUID_SETTINGS["diffusion_coeff"] = 0.0
 FLUID_SETTINGS["dissipation_rate"] = 0.0
 FLUID_SETTINGS["viscosity"] = 0.0
 FLUID_SETTINGS["source"] = None
-CONSTRAINT = {}
-CONSTRAINT["keyframes"] = [1]
-CONSTRAINT["indices"]  = [[1]]
 
 SIZE = int(np.sqrt(len(target_density)))
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
@@ -79,6 +76,13 @@ for j in range(SIZE):
         COORDS_Y.append(point_y)
         u_init.append(-1)
         v_init.append(-1)
+
+
+CONSTRAINT = {}
+CONSTRAINT["keyframes"] = [40]
+CONSTRAINT["indices"]  = [[1]]
+CONSTRAINT["values"] = [[[1], [1]]]
+CONSTRAINT["weights"] = [100]
 
 BOUNDARY_FUNC = None
 trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, debug=False)

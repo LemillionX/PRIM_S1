@@ -95,9 +95,10 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
+            if event.button == 1 and GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE < GRID_HEIGHT-1:
                 # If the left mouse button is pressed, start a new curve
                     drawing = True
+                    print(GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE)
                     curves.append([event.pos])
                     visited_cells.append([[event.pos[0]//CELL_SIZE, GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE]])
         elif event.type == pygame.MOUSEMOTION and drawing:

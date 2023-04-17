@@ -79,7 +79,8 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
         # print(grad)
         if (count < 3) or (count%10 == 0):
-            print(midVel)
+            if debug:
+                print(midVel)
             print("[step", count, "] : learning_rate = ", learning_rate.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
 
     if (count < _max_iter and count > 0):

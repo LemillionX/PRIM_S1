@@ -1,9 +1,10 @@
 import tf_train as train
 import numpy as np
+import json
 
 FILENAME = {}
-FILENAME["velocity"] = "trained_velocity"
-FILENAME["density"] = "trained_density"
+FILENAME["velocity"] = "trained_velocity_multiple_constraints"
+FILENAME["density"] = "trained_density_multiple_constraints"
 
 density_init=[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
@@ -79,10 +80,15 @@ for j in range(SIZE):
 
 
 CONSTRAINT = {}
-CONSTRAINT["keyframes"] = [40]
-CONSTRAINT["indices"]  = [[1]]
-CONSTRAINT["values"] = [[[1], [1]]]
-CONSTRAINT["weights"] = [100]
+CONSTRAINT_FILE = "multiple.json"
+with open("../data/"+CONSTRAINT_FILE) as file:
+    print('Loading file', CONSTRAINT_FILE)
+    CONSTRAINT = json.load(file)
+# CONSTRAINT["indices"]  = [[1]]
+# CONSTRAINT["values"] = [[[1], [1]]]
+CONSTRAINT["keyframes"] = [round((i+1)*N_FRAMES/(len(CONSTRAINT["indices"])+1)) for i in range(len(CONSTRAINT["indices"]))]
+CONSTRAINT["weights"] = [1 for _ in range(len(CONSTRAINT["indices"]))]
+print(CONSTRAINT)
 
 BOUNDARY_FUNC = None
 trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, debug=False)

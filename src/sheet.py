@@ -1,6 +1,12 @@
 import tensorflow as tf
 import numpy as np
 import sys
+import json
+import matplotlib.pyplot as plt
+from PIL import Image
+from scipy.special import erf
+import matplotlib.cm as cm
+
 
 def indexTo1D(i,j, sizeX):
     return j*sizeX+i
@@ -108,7 +114,6 @@ def solvePressure(u, v, sizeX, sizeY, h, mat):
         div = tf.expand_dims(div, 1)
     return tf.linalg.solve(mat, div)
 
-
 def project1(u,v, sizeX, sizeY, mat, h, boundary_func):
     _u, _v = set_solid_boundary(u,v, sizeX, sizeY, boundary_func)
     p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]
@@ -135,7 +140,6 @@ def project1(u,v, sizeX, sizeY, mat, h, boundary_func):
     new_v = _v - gradP_v
     return set_solid_boundary(new_u, new_v, sizeX, sizeY,boundary_func)
 
-
 def project2(u,v, sizeX, sizeY, mat, h, boundary_func):
     _u, _v = set_solid_boundary(u,v, sizeX, sizeY, boundary_func)
     p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]
@@ -147,6 +151,78 @@ def project2(u,v, sizeX, sizeY, mat, h, boundary_func):
     new_u = _u - gradP_u
     new_v = _v - gradP_v
     return set_solid_boundary(new_u, new_v, sizeX, sizeY,boundary_func)
+
+
+
+target_density =[
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+SIZE = 20
+FLUID_SETTINGS = {}
+FLUID_SETTINGS["timestep"] = 0.025
+FLUID_SETTINGS["grid_min"] = -1
+FLUID_SETTINGS["grid_max"] = 1
+FLUID_SETTINGS["diffusion_coeff"] = 0.0
+FLUID_SETTINGS["dissipation_rate"] = 0.0
+FLUID_SETTINGS["viscosity"] = 0.0
+FLUID_SETTINGS["source"] = None
+D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
+
+COORDS_X = []   # x-coordinates of position
+COORDS_Y = []   # y-coordinates of position
+for j in range(SIZE):
+    for i in range(SIZE):
+        point_x = FLUID_SETTINGS["grid_min"]+(i+0.5)*D
+        point_y = FLUID_SETTINGS["grid_min"]+(j+0.5)*D
+        COORDS_X.append(point_x)
+        COORDS_Y.append(point_y)
+
+CONSTRAINT = {}
+CONSTRAINT_FILE = "multiple.json"
+with open("../data/"+CONSTRAINT_FILE) as file:
+    print('Loading file', CONSTRAINT_FILE)
+    CONSTRAINT = json.load(file)
+
+indices = np.array(CONSTRAINT["indices"])
+u = np.zeros(SIZE*SIZE)
+v = np.zeros(SIZE*SIZE)
+for i, idx  in enumerate(indices):
+    u[idx] = CONSTRAINT["values"][i][0][0]
+    v[idx] = CONSTRAINT["values"][i][1][0]
+
+
+x,y = np.meshgrid(COORDS_X[:SIZE], COORDS_Y[::SIZE])
+u = np.reshape(u, (SIZE,SIZE))
+v = np.reshape(v, (SIZE,SIZE))
+fig, ax = plt.subplots(1, 1)
+ax.set_aspect('equal', adjustable='box')
+Q = ax.quiver(x, y, u, v, color='red', scale_units='width')
+
+density = erf(np.clip(np.flipud(np.reshape(target_density, (SIZE,SIZE))), 0, None) * 2)
+img = cm.cividis(density)
+img = Image.fromarray((img * 255).astype('uint8'))
+img_resize = img.resize((640, 640))
+img.show()
+plt.show()
 
 if len(sys.argv) > 1:
     size = 4

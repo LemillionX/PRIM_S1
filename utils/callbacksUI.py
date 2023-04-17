@@ -12,7 +12,9 @@ def prompt_file():
     top.withdraw()  # hide window
     file_name = tkinter.filedialog.asksaveasfile(initialdir="../data", parent=top, filetypes=files, defaultextension=files)
     top.destroy()
-    return "../data/"+file_name.name.rsplit("/")[-1]
+    if file_name is not None:
+        return "../data/"+file_name.name.rsplit("/")[-1]
+    return None
 
 def saveToJSON(cells,size, file):
     indices = []

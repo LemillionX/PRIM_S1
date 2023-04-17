@@ -1,5 +1,6 @@
 import pygame
 import pygame_gui
+import callbacksUI as ui
 
 # Define some colors
 BLACK = (0, 0, 0)
@@ -75,8 +76,9 @@ def button_click():
     print("Button clicked!")
 
 def save_trajectory():
-    print("Saving trajectory")
-    print(visited_cells)
+    file_name = ui.prompt_file()
+    ui.saveToJSON(visited_cells[0], GRID_HEIGHT, file_name)
+    print("Trajectiry saved here : ", file_name)
 
 def reset():
     print("Reset")
@@ -98,7 +100,6 @@ while running:
             if event.button == 1 and GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE < GRID_HEIGHT-1:
                 # If the left mouse button is pressed, start a new curve
                     drawing = True
-                    print(GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE)
                     curves.append([event.pos])
                     visited_cells.append([[event.pos[0]//CELL_SIZE, GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE]])
         elif event.type == pygame.MOUSEMOTION and drawing:

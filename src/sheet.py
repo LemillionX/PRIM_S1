@@ -154,76 +154,6 @@ def project2(u,v, sizeX, sizeY, mat, h, boundary_func):
 
 
 
-target_density =[
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,  
- 0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,  
- 0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-
-SIZE = 20
-FLUID_SETTINGS = {}
-FLUID_SETTINGS["timestep"] = 0.025
-FLUID_SETTINGS["grid_min"] = -1
-FLUID_SETTINGS["grid_max"] = 1
-FLUID_SETTINGS["diffusion_coeff"] = 0.0
-FLUID_SETTINGS["dissipation_rate"] = 0.0
-FLUID_SETTINGS["viscosity"] = 0.0
-FLUID_SETTINGS["source"] = None
-D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
-
-COORDS_X = []   # x-coordinates of position
-COORDS_Y = []   # y-coordinates of position
-for j in range(SIZE):
-    for i in range(SIZE):
-        point_x = FLUID_SETTINGS["grid_min"]+(i+0.5)*D
-        point_y = FLUID_SETTINGS["grid_min"]+(j+0.5)*D
-        COORDS_X.append(point_x)
-        COORDS_Y.append(point_y)
-
-CONSTRAINT = {}
-CONSTRAINT_FILE = "multiple.json"
-with open("../data/"+CONSTRAINT_FILE) as file:
-    print('Loading file', CONSTRAINT_FILE)
-    CONSTRAINT = json.load(file)
-
-indices = np.array(CONSTRAINT["indices"])
-u = np.zeros(SIZE*SIZE)
-v = np.zeros(SIZE*SIZE)
-for i, idx  in enumerate(indices):
-    u[idx] = CONSTRAINT["values"][i][0][0]
-    v[idx] = CONSTRAINT["values"][i][1][0]
-
-
-x,y = np.meshgrid(COORDS_X[:SIZE], COORDS_Y[::SIZE])
-u = np.reshape(u, (SIZE,SIZE))
-v = np.reshape(v, (SIZE,SIZE))
-fig, ax = plt.subplots(1, 1)
-ax.set_aspect('equal', adjustable='box')
-Q = ax.quiver(x, y, u, v, color='red', scale_units='width')
-
-density = erf(np.clip(np.flipud(np.reshape(target_density, (SIZE,SIZE))), 0, None) * 2)
-img = cm.cividis(density)
-img = Image.fromarray((img * 255).astype('uint8'))
-img_resize = img.resize((640, 640))
-img.show()
-plt.show()
-
 if len(sys.argv) > 1:
     size = 4
 
@@ -278,6 +208,59 @@ if len(sys.argv) > 1:
     if sys.argv[1] == "data":
         print("Python v", sys.version)
         print("TensorFlow v", tf.__version__)
+
+    if sys.argv[1] == "constraint":
+        CONSTRAINT = {}
+        CONSTRAINT_FILE = "test_density.json"
+        with open("../data/"+CONSTRAINT_FILE) as file:
+            print('Loading file', CONSTRAINT_FILE)
+            CONSTRAINT = json.load(file)
+
+        target_density = CONSTRAINT["target_density"]
+        init_density = CONSTRAINT["init_density"]
+        SIZE = int(np.sqrt(len(target_density)))
+
+        FLUID_SETTINGS = {}
+        FLUID_SETTINGS["timestep"] = 0.025
+        FLUID_SETTINGS["grid_min"] = -1
+        FLUID_SETTINGS["grid_max"] = 1
+        FLUID_SETTINGS["diffusion_coeff"] = 0.0
+        FLUID_SETTINGS["dissipation_rate"] = 0.0
+        FLUID_SETTINGS["viscosity"] = 0.0
+        FLUID_SETTINGS["source"] = None
+        D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
+
+        COORDS_X = []   # x-coordinates of position
+        COORDS_Y = []   # y-coordinates of position
+        for j in range(SIZE):
+            for i in range(SIZE):
+                point_x = FLUID_SETTINGS["grid_min"]+(i+0.5)*D
+                point_y = FLUID_SETTINGS["grid_min"]+(j+0.5)*D
+                COORDS_X.append(point_x)
+                COORDS_Y.append(point_y)
+
+
+        indices = np.array(CONSTRAINT["indices"])
+        u = np.zeros(SIZE*SIZE)
+        v = np.zeros(SIZE*SIZE)
+        for i, idx  in enumerate(indices):
+            u[idx] = CONSTRAINT["values"][i][0][0]*D
+            v[idx] = CONSTRAINT["values"][i][1][0]*D
+
+        x,y = np.meshgrid(COORDS_X[:SIZE], COORDS_Y[::SIZE])
+        u = np.reshape(u, (SIZE,SIZE))
+        v = np.reshape(v, (SIZE,SIZE))
+        fig, ax = plt.subplots(1, 1)
+        ax.set_aspect('equal', adjustable='box')
+        Q = ax.quiver(x, y, u, v, color='red', scale_units='width')
+
+        density_t = erf(np.clip(np.flipud(np.reshape(target_density, (SIZE,SIZE))), 0, None) * 2)
+        density_i = erf(np.clip(np.flipud(np.reshape(init_density, (SIZE,SIZE))), 0, None) * 2)
+        img_t = Image.fromarray((cm.cividis(density_t) * 255).astype('uint8')).resize((640, 640))
+        img_i = Image.fromarray((cm.cividis(density_i) * 255).astype('uint8')).resize((640, 640))
+        img_t.show()
+        img_i.show()
+        plt.show()
 
          
 

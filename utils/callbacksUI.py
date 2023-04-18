@@ -16,7 +16,7 @@ def prompt_file():
         return "../data/"+file_name.name.rsplit("/")[-1]
     return None
 
-def saveToJSON(cells,size, file):
+def saveToJSON(cells, target_density, init_density , size, file):
     indices = []
     vel = []
     for i in range(1, len(cells)-1):
@@ -25,7 +25,7 @@ def saveToJSON(cells,size, file):
 
     # Saving indices
     with open(file, 'w') as f:
-        json.dump({"indices":indices, "values":vel}, f)
+        json.dump({"indices":indices, "values":vel, "target_density":target_density, "init_density":init_density}, f)
 
     
     

@@ -7,7 +7,8 @@ import numpy as np
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
-YELLOW = (0, 255, 255)
+YELLOW = (255, 255, 0)
+GREEN = (0,255,0)
 
 # Grid dimensions
 CELL_SIZE = 40
@@ -61,14 +62,28 @@ reset_button = pygame_gui.elements.UIButton(
 )
 
 edit_density_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(2*BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH, BUTTON_HEIGHT),
-    text='Edit Density',
+    relative_rect=pygame.Rect(2*BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
+    text='Edit Target Density',
     manager=ui_manager,
     container=tool_bar_container
 )
 
-# Tool bar for density grid
+edit_init_density_button = pygame_gui.elements.UIButton(
+    relative_rect=pygame.Rect(3.5*BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
+    text='Edit Initial Density',
+    manager=ui_manager,
+    container=tool_bar_container
+)
+
+# Tool bar for target density grid
 tool_bar_density = pygame_gui.elements.UIPanel(
+    relative_rect=pygame.Rect(0, 0, WINDOW_SIZE[0], 30),
+    starting_layer_height=1,
+    manager=ui_manager
+)
+
+# Tool bar for initial density grid
+tool_bar_init_density = pygame_gui.elements.UIPanel(
     relative_rect=pygame.Rect(0, 0, WINDOW_SIZE[0], 30),
     starting_layer_height=1,
     manager=ui_manager
@@ -76,11 +91,20 @@ tool_bar_density = pygame_gui.elements.UIPanel(
 
 # Come back to UI Tool bar button
 quit_density_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
+    relative_rect=pygame.Rect(5, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
     text='End density editing',
     manager=ui_manager,
     container=tool_bar_density
 )
+
+# Come back to UI Tool bar button
+quit_init_density_button = pygame_gui.elements.UIButton(
+    relative_rect=pygame.Rect(5, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
+    text='End density editing',
+    manager=ui_manager,
+    container=tool_bar_init_density
+)
+
 
 # Set the default background color
 screen.fill(WHITE)
@@ -96,12 +120,13 @@ curves = []
 visited_cells = []
 
 # Create a grid to store density
-density = np.zeros(GRID_HEIGHT*GRID_WIDTH)
+target_density = np.zeros(GRID_HEIGHT*GRID_WIDTH)
+init_density = np.zeros(GRID_HEIGHT*GRID_WIDTH)
 
 
 # Active panel variable
 active_panel = tool_bar_container
-lst_panels = [tool_bar_container, tool_bar_density]
+lst_panels = [tool_bar_container, tool_bar_density, tool_bar_init_density]
 
 
 # Define callbacks for buttons
@@ -111,7 +136,10 @@ def button_click():
 def save_trajectory():
     file_name = ui.prompt_file()
     if file_name is not None:
-        ui.saveToJSON(visited_cells[0], GRID_HEIGHT, file_name)
+        if len(visited_cells) > 0:
+            ui.saveToJSON(visited_cells[0], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, file_name)
+        else:
+            ui.saveToJSON([], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, file_name)
         print("Trajectiry saved here : ", file_name)
 
 def reset():
@@ -140,7 +168,11 @@ while running:
                 if active_panel == tool_bar_density:
                     i = event.pos[0]//CELL_SIZE
                     j = GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE
-                    density[i+j*GRID_HEIGHT] = 1
+                    target_density[i+j*GRID_HEIGHT] = 1 - target_density[i+j*GRID_HEIGHT]
+                if active_panel == tool_bar_init_density:
+                    i = event.pos[0]//CELL_SIZE
+                    j = GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE
+                    init_density[i+j*GRID_HEIGHT] = 1 - init_density[i+j*GRID_HEIGHT]
         elif event.type == pygame.MOUSEMOTION and drawing:
             # If the left mouse button is pressed and moving, continue the curve
             curves[-1].append(pygame.mouse.get_pos())
@@ -161,7 +193,11 @@ while running:
                     reset()
                 if event.ui_element == edit_density_button:
                     active_panel = tool_bar_density
+                if event.ui_element == edit_init_density_button:
+                    active_panel = tool_bar_init_density
                 if event.ui_element == quit_density_button:
+                    active_panel = tool_bar_container
+                if event.ui_element == quit_init_density_button:
                     active_panel = tool_bar_container
 
         # Update the UI manager with the event
@@ -171,18 +207,21 @@ while running:
 
     # Redraw the screen
     screen.fill(WHITE)
+
+    # Draw density
+    for idx in range(len(target_density)):
+        row = idx % GRID_HEIGHT
+        col = GRID_HEIGHT-1 - (idx // GRID_HEIGHT)
+        if target_density[idx] == 1:
+            pygame.draw.rect(screen, YELLOW, (row*CELL_SIZE, col*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+        if init_density[idx] == 1:
+            pygame.draw.rect(screen, GREEN, (row*CELL_SIZE, col*CELL_SIZE, CELL_SIZE, CELL_SIZE))
+
+    # Draw grid
     for x in range(0, WINDOW_WIDTH, CELL_SIZE):
         pygame.draw.line(screen, BLACK, (x, 0), (x, WINDOW_HEIGHT))
     for y in range(0, WINDOW_HEIGHT, CELL_SIZE):
         pygame.draw.line(screen, BLACK, (0, y), (WINDOW_WIDTH, y))
-
-
-    # Draw density
-    for idx, cell in enumerate(density):
-        if cell == 1:
-            row = idx % GRID_HEIGHT
-            col = GRID_HEIGHT-1 - (idx // GRID_HEIGHT)
-            pygame.draw.rect(screen, YELLOW, (row*CELL_SIZE, col*CELL_SIZE, CELL_SIZE, CELL_SIZE))
 
     # Draw trajectory
     for curve in curves:

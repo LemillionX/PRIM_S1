@@ -137,7 +137,7 @@ def save_trajectory():
             ui.saveToJSON(visited_cells[0], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, file_name)
         else:
             ui.saveToJSON([], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, file_name)
-        pygame.image.save(screen, file_name.rsplit(".",1)[0] + ".png")
+        pygame.image.save(screen, file_name.rsplit(".",1)[0] + ".jpg")
         print("Trajectory saved here : ", file_name)
 
 def reset():

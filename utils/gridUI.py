@@ -130,9 +130,6 @@ lst_panels = [tool_bar_container, tool_bar_density, tool_bar_init_density]
 
 
 # Define callbacks for buttons
-def button_click():
-    print("Button clicked!")
-
 def save_trajectory():
     file_name = ui.prompt_file()
     if file_name is not None:
@@ -140,7 +137,8 @@ def save_trajectory():
             ui.saveToJSON(visited_cells[0], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, file_name)
         else:
             ui.saveToJSON([], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, file_name)
-        print("Trajectiry saved here : ", file_name)
+        pygame.image.save(screen, file_name.rsplit(".",1)[0] + ".png")
+        print("Trajectory saved here : ", file_name)
 
 def reset():
     print("Reset")

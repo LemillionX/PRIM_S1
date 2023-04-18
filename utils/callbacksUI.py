@@ -25,7 +25,7 @@ def saveToJSON(cells, target_density, init_density , size, file):
 
     # Saving indices
     with open(file, 'w') as f:
-        json.dump({"indices":indices, "values":vel, "target_density":target_density, "init_density":init_density}, f)
+        json.dump({"indices":indices, "values":vel, "target_density":target_density, "init_density":init_density}, f, indent=4)
 
     
     

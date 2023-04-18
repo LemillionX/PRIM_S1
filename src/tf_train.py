@@ -64,9 +64,9 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     ## Optimisation
     count = 0
     while (count < _max_iter and loss > 0.1 and tf.norm(grad).numpy() > 1e-04):
-        # l_rate = 10*abs(tf.random.normal([1]))
+        # l_rate = learning_rate*abs(tf.random.normal([1]))
         l_rate = tf.constant(learning_rate/np.sqrt(count+1,),dtype = tf.float32)
-        # l_rate = tf.constant(25,dtype = tf.float32)
+        # l_rate = tf.constant(learning_rate,dtype = tf.float32)
         density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
         trained_vel_x = trained_vel_x - l_rate*grad[0]
         trained_vel_y = trained_vel_y - l_rate*grad[1]

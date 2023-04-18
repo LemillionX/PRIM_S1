@@ -52,14 +52,9 @@ if len(CONSTRAINT["indices"]) > 0:
     # Check if there is a trajectory constraint
     CONSTRAINT["values"] = (D*np.array(CONSTRAINT["values"]))
     CONSTRAINT["keyframes"] = [round((i+1)*N_FRAMES/(len(CONSTRAINT["indices"])+1)) for i in range(len(CONSTRAINT["indices"]))]
-    CONSTRAINT["weights"] = [1 for _ in range(len(CONSTRAINT["indices"]))]
+    CONSTRAINT["weights"] = [1  for _ in range(len(CONSTRAINT["indices"]))]
 else:
     CONSTRAINT = None
-
-
-# CONSTRAINT["indices"]  = [[1]]
-# CONSTRAINT["values"] = [[[1], [1]]]
-
 
 BOUNDARY_FUNC = None
 trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, LEARNING_RATE, debug=False)

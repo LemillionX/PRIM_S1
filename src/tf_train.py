@@ -7,11 +7,13 @@ import os
 from tqdm import tqdm
 
 def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
-    loss = 0.5*(tf.norm(current - target)**2) 
-    for t in range(len(midVel)):
-        for i in range(len(midVel[t])):
-            loss += 0.5*weights[t]*(tf.norm(currentMidVel[t][i] - midVel[t][i]))**2
-    return loss
+    density_loss = 0.5*(tf.norm(current - target)**2)
+    velocity_loss = tf.constant(0, dtype=tf.float32) 
+    for t in range(len(midVel)): # iterate over keyframes
+        velocity_loss += weights[t]*(1+tf.keras.losses.cosine_similarity(tf.reshape(tf.convert_to_tensor(midVel[t]), [-1]),  tf.convert_to_tensor(currentMidVel[t])))
+        # for i in range(len(midVel[t])): # iterate over dimension
+            # velocity_loss += 0.5*weights[t]*(tf.norm(currentMidVel[t][i] - midVel[t][i]))**2
+    return density_loss + velocity_loss, density_loss, velocity_loss
 
 def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, _boundary, filename, constraint=None, learning_rate=1.1, debug=False):
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
@@ -52,14 +54,14 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     coords_Y = tf.convert_to_tensor(_coordsY, dtype=tf.float32)
 
     ## Initial guess
-    loss = loss_quadratic(density_field, target_density)
+    loss, d_loss, v_loss = loss_quadratic(density_field, target_density)
     with tf.GradientTape() as tape:
         velocity_field_x = tf.Variable(velocity_field_x)
         velocity_field_y = tf.Variable(velocity_field_y)
         _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
-        loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
+        loss,  d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
     grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
-    print("[step 0] : loss = ", loss.numpy(),  ", gradient norm = ",tf.norm(grad).numpy())
+    print("[step 0] : loss = {loss}, density_loss = {d_loss}, velocity_loss = {v_loss}, gradoent_norm = {g_norm} ".format(loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
 
     ## Optimisation
     count = 0
@@ -74,25 +76,26 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
             velocity_field_x = tf.Variable(trained_vel_x)
             velocity_field_y = tf.Variable(trained_vel_y)
             _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
-            loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
+            loss, d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
         count += 1
         grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
         # print(grad)
         if (count < 3) or (count%10 == 0):
             if debug:
                 print(midVel)
-            print("[step", count, "] : learning_rate = ", l_rate.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
+            print("[step {count}] : learning_rate = {l_rate}, loss = {loss}, density_loss = {d_loss}, velocity_loss = {v_loss}, gradoent_norm = {g_norm}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
 
     if (count < _max_iter and count > 0):
-        print("[step", count, "] : learning_rate = ", l_rate.numpy(), ", loss = ", loss.numpy(), ", gradient norm = ", tf.norm(grad).numpy())
+        print("[step {count}] : learning_rate = {l_rate}, loss = {loss}, density_loss = {d_loss}, velocity_loss = {v_loss}, gradoent_norm = {g_norm}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
+
 
     if debug:
-        print("After ", count, " iterations, the velocity field is " )
+        print("After {count} iterations, the velocity field is ".format(count=count))
         print("x component = ")
         print(trained_vel_x)
         print("y component = ")
         print(trained_vel_y)
-        print(" and gradient norm = ",tf.norm(grad).numpy())
+        print(" and gradient norm = {norm}".format(norm = tf.norm(grad).numpy()))
 
     ## Testing
     density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)

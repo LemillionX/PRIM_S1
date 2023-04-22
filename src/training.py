@@ -10,7 +10,7 @@ FILENAME["density"] = "density"
 
 # Simulation settings
 MAX_ITER = 50
-LEARNING_RATE = 5
+LEARNING_RATE = 1
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -21,10 +21,14 @@ FLUID_SETTINGS["diffusion_coeff"] = 0.0
 FLUID_SETTINGS["dissipation_rate"] = 0.0
 FLUID_SETTINGS["viscosity"] = 0.0
 FLUID_SETTINGS["source"] = None
+# FLUID_SETTINGS["source"] = {}
+# FLUID_SETTINGS["source"]["value"]=1.0
+# FLUID_SETTINGS["source"]["indices"]=np.array([[55],[54],[53],[52],[72],[92],[112],[113],[114],[115],[95],[75],[74],[73],[93],[94]])
+# FLUID_SETTINGS["source"]["time"]=60
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "batch1_traj3"
+CONSTRAINT_FILE = "snake"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -64,6 +68,8 @@ BOUNDARY_FUNC = None
 trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, LEARNING_RATE, debug=False)
 
 with open("../output/config.json", 'w') as file:
+    if FLUID_SETTINGS["source"] is not None:
+        FLUID_SETTINGS["source"]["indices"] = FLUID_SETTINGS["source"]["indices"].tolist()
     json.dump({"MAX_ITER": MAX_ITER,
                "LEARNING_RATE": LEARNING_RATE,
                "WEIGHT": WEIGHT,

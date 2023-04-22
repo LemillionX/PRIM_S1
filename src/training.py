@@ -57,8 +57,14 @@ for j in range(SIZE):
 if len(CONSTRAINT["indices"]) > 0:
     # Check if there is a trajectory constraint
     CONSTRAINT["values"] = (np.array(CONSTRAINT["values"]))
-    u_init = [CONSTRAINT["values"][0][0][0] for _ in range(len(COORDS_X))]
-    v_init = [CONSTRAINT["values"][0][1][0] for _ in range(len(COORDS_Y))]
+    u_init = np.zeros_like(u_init)
+    v_init = np.zeros_like(v_init)
+    idx = np.array(CONSTRAINT["indices"]).flatten()
+    u_init[idx] = CONSTRAINT["values"][:, :, 0][:, 0]
+    v_init[idx] = CONSTRAINT["values"][:, :, 0][:, 1]
+    # Dummy init
+    # u_init = [CONSTRAINT["values"][0][0][0] for _ in range(len(COORDS_X))]
+    # v_init = [CONSTRAINT["values"][0][1][0] for _ in range(len(COORDS_Y))]
     CONSTRAINT["keyframes"] = [round((i+1)*N_FRAMES/(len(CONSTRAINT["indices"])+1)) for i in range(len(CONSTRAINT["indices"]))]
     CONSTRAINT["weights"] = [WEIGHT  for _ in range(len(CONSTRAINT["indices"]))]
 else:

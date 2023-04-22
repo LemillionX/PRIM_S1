@@ -61,7 +61,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
         loss,  d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
     grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
-    print("[step 0] : loss = {loss}, density_loss = {d_loss}, velocity_loss = {v_loss}, gradoent_norm = {g_norm} ".format(loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
+    print("[step 0] : loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f} ".format(loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
 
     ## Optimisation
     count = 0
@@ -83,10 +83,10 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         if (count < 3) or (count%10 == 0):
             if debug:
                 print(midVel)
-            print("[step {count}] : learning_rate = {l_rate}, loss = {loss}, density_loss = {d_loss}, velocity_loss = {v_loss}, gradoent_norm = {g_norm}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
+            print("[step {count}] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
 
     if (count < _max_iter and count > 0):
-        print("[step {count}] : learning_rate = {l_rate}, loss = {loss}, density_loss = {d_loss}, velocity_loss = {v_loss}, gradoent_norm = {g_norm}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
+        print("[step {count}] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad).numpy()))
 
 
     if debug:

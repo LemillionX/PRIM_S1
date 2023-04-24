@@ -6,11 +6,12 @@ import matplotlib.pyplot as plt
 import os
 from tqdm import tqdm
 
+@tf.function(jit_compile=True)
 def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
     density_loss = 0.5*(tf.norm(current - target)**2)
     velocity_loss = tf.constant(0, dtype=tf.float32) 
     for t in range(len(midVel)): # iterate over keyframes
-        velocity_loss += weights[t]*(1+tf.keras.losses.cosine_similarity(tf.reshape(tf.convert_to_tensor(midVel[t]), [-1]),  tf.convert_to_tensor(currentMidVel[t])))
+        velocity_loss += weights[t]*(1.0+tf.keras.losses.cosine_similarity(tf.reshape(tf.convert_to_tensor(midVel[t]), [-1]),  tf.convert_to_tensor(currentMidVel[t])))
         # for i in range(len(midVel[t])): # iterate over dimension
             # velocity_loss += 0.5*weights[t]*(tf.norm(currentMidVel[t][i] - midVel[t][i]))**2
     return density_loss + velocity_loss, density_loss, velocity_loss
@@ -67,8 +68,8 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     count = 0
     while (count < _max_iter and loss > 0.1 and tf.norm(grad).numpy() > 1e-04):
         # l_rate = learning_rate*abs(tf.random.normal([1]))
-        l_rate = tf.constant(learning_rate/np.sqrt(count+1,),dtype = tf.float32)
-        # l_rate = tf.constant(learning_rate,dtype = tf.float32)
+        # l_rate = tf.constant(learning_rate/np.sqrt(count+1,),dtype = tf.float32)
+        l_rate = tf.constant(learning_rate, dtype = tf.float32)
         density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
         trained_vel_x = trained_vel_x - l_rate*grad[0]
         trained_vel_y = trained_vel_y - l_rate*grad[1]

@@ -11,7 +11,7 @@ FILENAME["density"] = "density"
 # Simulation settings
 MAX_ITER = 50
 LEARNING_RATE = 1
-WEIGHT = 0
+WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
 FLUID_SETTINGS["timestep"] = 0.025
@@ -37,7 +37,8 @@ with open("../data/"+CONSTRAINT_FILE+".json") as file:
 target_density = CONSTRAINT["target_density"][:]
 density_init = CONSTRAINT["init_density"][:]
 SIZE = int(np.sqrt(len(target_density)))
-CONSTRAINT = None
+
+# CONSTRAINT = None
 
 # Calculate some useful physicial quantities
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
@@ -55,7 +56,7 @@ for j in range(SIZE):
         u_init.append(0.0)
         v_init.append(1.0)
          
-if (CONSTRAINT is not None) and (len(CONSTRAINT["indices"]) > 0):
+if len(CONSTRAINT["indices"]) > 0:
     # Check if there is a trajectory constraint
     CONSTRAINT["values"] = np.array(CONSTRAINT["values"])
     u_init = np.zeros_like(u_init)

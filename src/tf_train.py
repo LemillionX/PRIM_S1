@@ -117,8 +117,24 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     fps = 20
     if not os.path.isdir(save_path):
         os.mkdir(save_path)
+    else:
+        for file in os.listdir(save_path):
+            file_path = os.path.join(save_path, file)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f'Error deleting file: {file_path} - {e}')
     if not os.path.isdir(os.path.join(dir_path, density_name)):
         os.mkdir(os.path.join(dir_path, density_name))
+    else:
+        for file in os.listdir(os.path.join(dir_path, density_name)):
+            file_path = os.path.join(os.path.join(dir_path, density_name), file)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f'Error deleting file: {file_path} - {e}')
 
     print("Images will be saved here:", save_path)
     pbar = tqdm(range(1, _nFrames*2+1), desc = "Simulating....")

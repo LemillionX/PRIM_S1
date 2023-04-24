@@ -9,7 +9,7 @@ FILENAME["velocity"] = "velocity"
 FILENAME["density"] = "density"
 
 # Simulation settings
-MAX_ITER = 50
+MAX_ITER = 70
 LEARNING_RATE = 1
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
@@ -24,7 +24,7 @@ FLUID_SETTINGS["source"] = None
 # FLUID_SETTINGS["source"] = {}
 # FLUID_SETTINGS["source"]["value"]=1.0
 # FLUID_SETTINGS["source"]["indices"]=np.array([[55],[54],[53],[52],[72],[92],[112],[113],[114],[115],[95],[75],[74],[73],[93],[94]])
-# FLUID_SETTINGS["source"]["time"]=60
+# FLUID_SETTINGS["source"]["time"]=20
 
 # Load data from .json file
 CONSTRAINT = {}

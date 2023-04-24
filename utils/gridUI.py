@@ -171,6 +171,7 @@ while running:
                     i = event.pos[0]//CELL_SIZE
                     j = GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE
                     init_density[i+j*GRID_HEIGHT] = 1 - init_density[i+j*GRID_HEIGHT]
+                    print(i + GRID_HEIGHT * j)
         elif event.type == pygame.MOUSEMOTION and drawing:
             # If the left mouse button is pressed and moving, continue the curve
             curves[-1].append(pygame.mouse.get_pos())

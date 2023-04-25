@@ -151,7 +151,7 @@ def save_trajectory():
 def load_density():
     data = ui.loadFromJSON()
     if data is not None:
-        loaded_visited_cells = [data["indices"]]
+        loaded_visited_cells = [[ [x[0]%CELL_SIZE, x[0]//CELL_SIZE] for x in data["indices"]]]
         loaded_target_density = np.array(data["target_density"])
         loaded_init_density = np.array(data["init_density"])
         loaded_curves = []
@@ -190,7 +190,7 @@ while running:
                     i = event.pos[0]//CELL_SIZE
                     j = GRID_HEIGHT-1 - event.pos[1]//CELL_SIZE
                     init_density[i+j*GRID_HEIGHT] = 1 - init_density[i+j*GRID_HEIGHT]
-                    print(i + GRID_HEIGHT * j)
+                    # print(i + GRID_HEIGHT * j)
         elif event.type == pygame.MOUSEMOTION and drawing:
             # If the left mouse button is pressed and moving, continue the curve
             curves[-1].append(pygame.mouse.get_pos())

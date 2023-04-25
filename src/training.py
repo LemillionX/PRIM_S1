@@ -10,7 +10,7 @@ FILENAME["density"] = "density"
 
 # Simulation settings
 MAX_ITER = 50
-LEARNING_RATE = .01
+LEARNING_RATE = 1
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -28,7 +28,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "batch1_traj3"
+CONSTRAINT_FILE = "batch1_traj0"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -75,7 +75,7 @@ else:
 BOUNDARY_FUNC = None
 
 dt = FLUID_SETTINGS["timestep"]
-trained_vel_x, trained_vel_y, dt =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, LEARNING_RATE, debug=False)
+trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, LEARNING_RATE, debug=False)
 
 
 with open("../output/config.json", 'w') as file:

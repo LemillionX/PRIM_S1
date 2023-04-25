@@ -20,7 +20,7 @@ WIDGET_HEIGHT = CELL_SIZE * 2
 WINDOW_SIZE = (WINDOW_WIDTH, WINDOW_HEIGHT)
 
 # Button settings
-BUTTON_WIDTH = 150
+BUTTON_WIDTH = 130
 BUTTON_HEIGHT = 20
 BUTTON_TOP = 2
 BUTTON_LEFT = 5
@@ -47,29 +47,37 @@ tool_bar_container = pygame_gui.elements.UIPanel(
 )
 
 # Add buttons to the tool bar
-save_button = pygame_gui.elements.UIButton(
+load_button = pygame_gui.elements.UIButton(
     relative_rect=pygame.Rect(5, BUTTON_TOP, BUTTON_WIDTH, BUTTON_HEIGHT),
+    text='Load',
+    manager=ui_manager,
+    container=tool_bar_container
+)
+
+
+save_button = pygame_gui.elements.UIButton(
+    relative_rect=pygame.Rect(BUTTON_WIDTH + 1.5*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH, BUTTON_HEIGHT),
     text='Save',
     manager=ui_manager,
     container=tool_bar_container
 )
 
 reset_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH, BUTTON_HEIGHT),
+    relative_rect=pygame.Rect(2*BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH, BUTTON_HEIGHT),
     text='Reset',
     manager=ui_manager,
     container=tool_bar_container
 )
 
 edit_density_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(2*BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
+    relative_rect=pygame.Rect(3*BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
     text='Edit Target Density',
     manager=ui_manager,
     container=tool_bar_container
 )
 
 edit_init_density_button = pygame_gui.elements.UIButton(
-    relative_rect=pygame.Rect(3.5*BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
+    relative_rect=pygame.Rect(4.5*BUTTON_WIDTH + 2*BUTTON_LEFT, BUTTON_TOP, BUTTON_WIDTH*1.5, BUTTON_HEIGHT),
     text='Edit Initial Density',
     manager=ui_manager,
     container=tool_bar_container
@@ -134,11 +142,22 @@ def save_trajectory():
     file_name = ui.prompt_file()
     if file_name is not None:
         if len(visited_cells) > 0:
-            ui.saveToJSON(visited_cells[0], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, file_name)
+            ui.saveToJSON(visited_cells[0], target_density.tolist(), init_density.tolist(), curves, GRID_HEIGHT, file_name)
         else:
-            ui.saveToJSON([], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, file_name)
+            ui.saveToJSON([], target_density.tolist(), init_density.tolist(), GRID_HEIGHT, [], file_name)
         pygame.image.save(screen, file_name.rsplit(".",1)[0] + ".jpg")
         print("Trajectory saved here : ", file_name)
+
+def load_density():
+    data = ui.loadFromJSON()
+    if data is not None:
+        loaded_visited_cells = [data["indices"]]
+        loaded_target_density = np.array(data["target_density"])
+        loaded_init_density = np.array(data["init_density"])
+        loaded_curves = []
+        if "curves" in data:
+            loaded_curves = data["curves"]
+    return loaded_visited_cells, loaded_target_density, loaded_init_density, loaded_curves
 
 def reset():
     print("Reset")
@@ -186,6 +205,8 @@ while running:
         # Check for button press event
         if event.type == pygame.USEREVENT:
             if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_element == load_button:
+                    visited_cells, target_density, init_density, curves = load_density()
                 if event.ui_element == save_button:
                     save_trajectory()
                 if event.ui_element == reset_button:

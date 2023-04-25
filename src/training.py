@@ -28,7 +28,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "snake"
+CONSTRAINT_FILE = "batch1_traj3"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -62,8 +62,8 @@ if len(CONSTRAINT["indices"]) > 0:
     u_init = np.zeros_like(u_init)
     v_init = np.zeros_like(v_init)
     idx = np.array(CONSTRAINT["indices"]).flatten()
-    u_init[idx] = CONSTRAINT["values"][:, :, 0][:, 0]
-    v_init[idx] = CONSTRAINT["values"][:, :, 0][:, 1]
+    u_init[idx] = D*CONSTRAINT["values"][:, :, 0][:, 0]
+    v_init[idx] = D*CONSTRAINT["values"][:, :, 0][:, 1]
     # Dummy init
     # u_init = [CONSTRAINT["values"][0][0][0] for _ in range(len(COORDS_X))]
     # v_init = [CONSTRAINT["values"][0][1][0] for _ in range(len(COORDS_Y))]

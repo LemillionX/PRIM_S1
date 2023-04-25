@@ -2,7 +2,7 @@
     "MAX_ITER": 50,
     "LEARNING_RATE": 1,
     "WEIGHT": 1,
-    "N_FRAMES": 80,
+    "N_FRAMES": 30,
     "TIMESTEP": 0.025,
     "GRID_MIN": -1,
     "GRID_MAX": 1,

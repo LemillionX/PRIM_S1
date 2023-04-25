@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import os
 from tqdm import tqdm
 
-@tf.function(jit_compile=True)
 def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
     density_loss = 0.5*(tf.norm(current - target)**2)
     velocity_loss = tf.constant(0, dtype=tf.float32) 

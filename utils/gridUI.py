@@ -3,6 +3,16 @@ import pygame_gui
 import callbacksUI as ui
 import numpy as np
 
+#####################################
+#           SETTINGS                #
+#####################################
+GRID_SIZE = 20
+WINDOW_RESOLUTION = 900
+
+
+#####################################
+#           INTERFACE               #
+#####################################
 # Define some colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -11,12 +21,12 @@ YELLOW = (255, 255, 0)
 GREEN = (0,255,0)
 
 # Grid dimensions
-CELL_SIZE = 40
-GRID_WIDTH = 20
-GRID_HEIGHT = 20
-WINDOW_WIDTH = CELL_SIZE * GRID_WIDTH
-WINDOW_HEIGHT = CELL_SIZE * GRID_HEIGHT
-WIDGET_HEIGHT = CELL_SIZE * 2
+GRID_WIDTH = GRID_SIZE
+GRID_HEIGHT = GRID_SIZE
+WINDOW_WIDTH = WINDOW_RESOLUTION
+WINDOW_HEIGHT = WINDOW_RESOLUTION
+WIDGET_HEIGHT = 80
+CELL_SIZE = WINDOW_HEIGHT//GRID_HEIGHT
 WINDOW_SIZE = (WINDOW_WIDTH, WINDOW_HEIGHT)
 
 # Button settings

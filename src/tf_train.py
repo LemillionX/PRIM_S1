@@ -188,7 +188,7 @@ def train_scalar_field(_max_iter, _d_init, _target, _nFrames, a_init, _fluidSett
     ## Converting variables to tensors
     target_density = tf.convert_to_tensor(_target, dtype=tf.float32)
     density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
-    trained_a = tf.identity(a_init)
+    trained_a = tf.convert_to_tensor(a_init, dtype=tf.float32)
     dt = tf.convert_to_tensor(timestep, dtype=tf.float32)
     coords_X = tf.convert_to_tensor(_coordsX, dtype=tf.float32)
     coords_Y = tf.convert_to_tensor(_coordsY, dtype=tf.float32)

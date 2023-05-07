@@ -6,7 +6,7 @@ import numpy as np
 #####################################
 #           SETTINGS                #
 #####################################
-GRID_SIZE = 20
+GRID_SIZE = 40
 WINDOW_RESOLUTION = 900
 
 

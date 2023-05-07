@@ -28,7 +28,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "snake2"
+CONSTRAINT_FILE = "snake_40x40"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -54,9 +54,10 @@ for j in range(SIZE):
         COORDS_X.append(point_x)
         COORDS_Y.append(point_y)
         u_init.append(0.0)
-        v_init.append(1.0)
+        v_init.append(0.0)
          
 if len(CONSTRAINT["indices"]) > 0:
+    print("Velocity is constrained")
     # Check if there is a trajectory constraint
     CONSTRAINT["values"] = np.array(CONSTRAINT["values"])
     u_init = np.zeros_like(u_init)
@@ -70,6 +71,7 @@ if len(CONSTRAINT["indices"]) > 0:
     CONSTRAINT["keyframes"] = [round((i+1)*N_FRAMES/(len(CONSTRAINT["indices"])+1)) for i in range(len(CONSTRAINT["indices"]))]
     CONSTRAINT["weights"] = [WEIGHT  for _ in range(len(CONSTRAINT["indices"]))]
 else:
+    print("Velocity is NOT constrained")
     CONSTRAINT = None
 
 BOUNDARY_FUNC = None

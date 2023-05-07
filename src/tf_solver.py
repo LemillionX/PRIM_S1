@@ -4,6 +4,11 @@ import sys
 from termcolor import colored
 from tqdm import tqdm
 
+@tf.function
+def curl2Dvector(a, sizeX):
+    dx = tf.roll(a, shift=-1, axis=0) - tf.roll(a, shift=1, axis=0)
+    dy = tf.roll(a, shift=-sizeX, axis=0) - tf.roll(a, shift=sizeX, axis=0)
+    return dy, -dx
 
 @tf.function
 def addSource(s, value=1.0, indices=None):

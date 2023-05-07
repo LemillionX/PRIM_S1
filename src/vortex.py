@@ -1,4 +1,4 @@
-import solver_v2 as slv
+import np_solver as slv
 import numpy as np
 import viz as viz
 import matplotlib.pyplot as plt

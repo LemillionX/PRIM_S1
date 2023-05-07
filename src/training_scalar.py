@@ -27,7 +27,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "batch1_traj0"
+CONSTRAINT_FILE = "snake"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -41,7 +41,7 @@ SIZE = int(np.sqrt(len(target_density)))
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
 COORDS_X = []   # x-coordinates of position
 COORDS_Y = []   # y-coordinates of position
-a_init = np.zeros_like(target_density)
+a_init = np.random.rand(SIZE * SIZE)
 
 for j in range(SIZE):
     for i in range(SIZE):

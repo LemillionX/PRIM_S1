@@ -16,6 +16,26 @@ def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
             # velocity_loss += 0.5*weights[t]*(tf.norm(currentMidVel[t][i] - midVel[t][i]))**2
     return density_loss + velocity_loss, density_loss, velocity_loss
 
+
+@tf.function
+def create_vortex(center, r, w, coords, alpha=1.0):
+    rel_coords = coords - center
+    dist = tf.linalg.norm(rel_coords, axis=-1)
+    smoothed_dist = tf.exp(-tf.pow((dist-r)*alpha/r,2.0))
+    u = w*rel_coords[...,1] * smoothed_dist
+    v = - w*rel_coords[..., 0] * smoothed_dist
+    return u,v
+
+@tf.function
+def init_vortices(n, centers, radius, w, coords, size):
+    u = tf.zeros([size*size])
+    v = tf.zeros([size*size])
+    for i in range(n):
+        u_tmp,v_tmp = create_vortex(centers[i], radius[i], w[i], coords) 
+        u += u_tmp
+        v += v_tmp
+    return u,v
+
 def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, _boundary, filename, constraint=None, learning_rate=1.1, debug=False):
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
     sizeY = int(np.sqrt(len(_target)))           # number of elements in the y-axis

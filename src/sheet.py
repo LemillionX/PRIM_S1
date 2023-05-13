@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from scipy.special import erf
 import matplotlib.cm as cm
+from termcolor import colored
 
 
 def indexTo1D(i,j, sizeX):
@@ -152,6 +153,24 @@ def project2(u,v, sizeX, sizeY, mat, h, boundary_func):
     new_v = _v - gradP_v
     return set_solid_boundary(new_u, new_v, sizeX, sizeY,boundary_func)
 
+@tf.function
+def create_vortex(center, r, w, coords, alpha=1.0):
+    rel_coords = coords - center
+    dist = tf.linalg.norm(rel_coords, axis=-1)
+    smoothed_dist = tf.exp(-tf.pow((dist-r)*alpha/r,2.0))
+    u = w*rel_coords[...,1] * smoothed_dist
+    v = - w*rel_coords[..., 0] * smoothed_dist
+    return u,v
+
+@tf.function
+def init_vortices(n, centers, radius, w, coords, size):
+    u = tf.zeros([size*size])
+    v = tf.zeros([size*size])
+    for i in range(n):
+        u_tmp,v_tmp = create_vortex(centers[i], radius[i], w[i], coords) 
+        u += u_tmp
+        v += v_tmp
+    return u,v
 
 
 if len(sys.argv) > 1:
@@ -262,5 +281,48 @@ if len(sys.argv) > 1:
         img_i.show()
         plt.show()
 
+
+        if sys.argv[1] == "vortices":
+            # Calculate some useful physicial quantities
+            GRID_MAX = 1
+            GRID_MIN = -1
+            SIZE = 25
+            D = (GRID_MAX - GRID_MIN)/SIZE
+            COORDS_X = []   # x-coordinates of position
+            COORDS_Y = []   # y-coordinates of position
+            NB_VORTICES = 3
+
+            for j in range(SIZE):
+                for i in range(SIZE):
+                    point_x = GRID_MIN+(i+0.5)*D
+                    point_y = GRID_MIN+(j+0.5)*D
+                    COORDS_X.append(point_x)
+                    COORDS_Y.append(point_y)
+
+            COORDS = tf.stack((COORDS_X, COORDS_Y), axis=1)
+            centers = tf.Variable(tf.random.uniform([NB_VORTICES,2], minval=-1))
+            radius = tf.Variable(tf.random.uniform([NB_VORTICES]))
+            w = tf.Variable(tf.random.normal([NB_VORTICES]))
+            
+            # Gradient
+            with tf.GradientTape() as tape:
+                u,v = init_vortices(NB_VORTICES, centers, radius, w, COORDS, SIZE)
+            grad = tape.gradient([u,v], [centers, radius, w])
+            
+            # Differentiability test
+            if all([gradient is not None for gradient in grad]):
+                print(colored("init_vortex is differentiable.", 'green'))
+            else:
+                print(colored("init_vortex is not differentiable.", 'red'))
+                print(grad)
+
+            # Affichage
+            x,y = np.meshgrid(COORDS_X[:SIZE], COORDS_Y[::SIZE])
+            fig, ax = plt.subplots(1, 1)
+            ax.set_aspect('equal', adjustable='box')
+            u_viz = tf.reshape(u, shape=(SIZE, SIZE)).numpy()
+            v_viz = tf.reshape(v, shape=(SIZE, SIZE)).numpy()
+            Q = ax.quiver(x, y, u, v, color='red', scale_units='width')
+            plt.show()
          
 

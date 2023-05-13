@@ -282,47 +282,47 @@ if len(sys.argv) > 1:
         plt.show()
 
 
-        if sys.argv[1] == "vortices":
-            # Calculate some useful physicial quantities
-            GRID_MAX = 1
-            GRID_MIN = -1
-            SIZE = 25
-            D = (GRID_MAX - GRID_MIN)/SIZE
-            COORDS_X = []   # x-coordinates of position
-            COORDS_Y = []   # y-coordinates of position
-            NB_VORTICES = 3
+    if sys.argv[1] == "vortices":
+        # Calculate some useful physicial quantities
+        GRID_MAX = 1
+        GRID_MIN = -1
+        SIZE = 25
+        D = (GRID_MAX - GRID_MIN)/SIZE
+        COORDS_X = []   # x-coordinates of position
+        COORDS_Y = []   # y-coordinates of position
+        NB_VORTICES = 3
 
-            for j in range(SIZE):
-                for i in range(SIZE):
-                    point_x = GRID_MIN+(i+0.5)*D
-                    point_y = GRID_MIN+(j+0.5)*D
-                    COORDS_X.append(point_x)
-                    COORDS_Y.append(point_y)
+        for j in range(SIZE):
+            for i in range(SIZE):
+                point_x = GRID_MIN+(i+0.5)*D
+                point_y = GRID_MIN+(j+0.5)*D
+                COORDS_X.append(point_x)
+                COORDS_Y.append(point_y)
 
-            COORDS = tf.stack((COORDS_X, COORDS_Y), axis=1)
-            centers = tf.Variable(tf.random.uniform([NB_VORTICES,2], minval=-1))
-            radius = tf.Variable(tf.random.uniform([NB_VORTICES]))
-            w = tf.Variable(tf.random.normal([NB_VORTICES]))
-            
-            # Gradient
-            with tf.GradientTape() as tape:
-                u,v = init_vortices(NB_VORTICES, centers, radius, w, COORDS, SIZE)
-            grad = tape.gradient([u,v], [centers, radius, w])
-            
-            # Differentiability test
-            if all([gradient is not None for gradient in grad]):
-                print(colored("init_vortex is differentiable.", 'green'))
-            else:
-                print(colored("init_vortex is not differentiable.", 'red'))
-                print(grad)
+        COORDS = tf.stack((COORDS_X, COORDS_Y), axis=1)
+        centers = tf.Variable(tf.random.uniform([NB_VORTICES,2], minval=-1))
+        radius = tf.Variable(tf.random.uniform([NB_VORTICES]))
+        w = tf.Variable(tf.random.normal([NB_VORTICES]))
+        
+        # Gradient
+        with tf.GradientTape() as tape:
+            u,v = init_vortices(NB_VORTICES, centers, radius, w, COORDS, SIZE)
+        grad = tape.gradient([u,v], [centers, radius, w])
+        
+        # Differentiability test
+        if all([gradient is not None for gradient in grad]):
+            print(colored("init_vortex is differentiable.", 'green'))
+        else:
+            print(colored("init_vortex is not differentiable.", 'red'))
+        print(grad)
 
-            # Affichage
-            x,y = np.meshgrid(COORDS_X[:SIZE], COORDS_Y[::SIZE])
-            fig, ax = plt.subplots(1, 1)
-            ax.set_aspect('equal', adjustable='box')
-            u_viz = tf.reshape(u, shape=(SIZE, SIZE)).numpy()
-            v_viz = tf.reshape(v, shape=(SIZE, SIZE)).numpy()
-            Q = ax.quiver(x, y, u, v, color='red', scale_units='width')
-            plt.show()
+        # Affichage
+        x,y = np.meshgrid(COORDS_X[:SIZE], COORDS_Y[::SIZE])
+        fig, ax = plt.subplots(1, 1)
+        ax.set_aspect('equal', adjustable='box')
+        u_viz = tf.reshape(u, shape=(SIZE, SIZE)).numpy()
+        v_viz = tf.reshape(v, shape=(SIZE, SIZE)).numpy()
+        Q = ax.quiver(x, y, u, v, color='red', scale_units='width')
+        plt.show()
          
 

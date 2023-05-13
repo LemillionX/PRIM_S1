@@ -1,25 +1,90 @@
+import tf_train as train
 import tensorflow as tf
 import numpy as np
-from termcolor import colored
-import matplotlib.pyplot as plt
-import sys 
+import json
 
-@tf.function
-def create_vortex(center, r, w, coords, alpha=1.0):
-    rel_coords = coords - center
-    dist = tf.linalg.norm(rel_coords, axis=-1)
-    smoothed_dist = tf.exp(-tf.pow((dist-r)*alpha/r,2.0))
-    u = w*rel_coords[...,1] * smoothed_dist
-    v = - w*rel_coords[..., 0] * smoothed_dist
-    return u,v
+# File settings
+FILENAME = {}
+FILENAME["velocity"] = "velocity"
+FILENAME["density"] = "density"
 
-@tf.function
-def init_vortices(n, centers, radius, w, coords, size):
-    u = tf.zeros([size*size])
-    v = tf.zeros([size*size])
-    for i in range(n):
-        u_tmp,v_tmp = create_vortex(centers[i], radius[i], w[i], coords) 
-        u += u_tmp
-        v += v_tmp
-    return u,v
+# Simulation settings
+MAX_ITER = 50
+NB_VORTICES = 5
+LEARNING_RATE = .05
+WEIGHT = 2
+N_FRAMES = 80     # number of the frame where we want the shape to be matched
+FLUID_SETTINGS = {}
+FLUID_SETTINGS["timestep"] = 0.025
+FLUID_SETTINGS["grid_min"] = -1
+FLUID_SETTINGS["grid_max"] = 1
+FLUID_SETTINGS["diffusion_coeff"] = 0.0
+FLUID_SETTINGS["dissipation_rate"] = 0.0
+FLUID_SETTINGS["viscosity"] = 0.0
+FLUID_SETTINGS["source"] = None
+# FLUID_SETTINGS["source"] = {}
+# FLUID_SETTINGS["source"]["value"]=1.0
+# FLUID_SETTINGS["source"]["indices"]=np.array([[55],[54],[53],[52],[72],[92],[112],[113],[114],[115],[95],[75],[74],[73],[93],[94]])
+# FLUID_SETTINGS["source"]["time"]=20
+
+# Load data from .json file
+CONSTRAINT = {}
+CONSTRAINT_FILE = "snake"
+with open("../data/"+CONSTRAINT_FILE+".json") as file:
+    print('Loading file', CONSTRAINT_FILE+".json")
+    CONSTRAINT = json.load(file)
+
+# Data always have to contain target and initial density
+target_density = CONSTRAINT["target_density"][:]
+density_init = CONSTRAINT["init_density"][:]
+SIZE = int(np.sqrt(len(target_density)))
+
+# Calculate some useful physicial quantities
+D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
+COORDS_X = []   # x-coordinates of position
+COORDS_Y = []   # y-coordinates of position
+centers_init = tf.random.uniform([NB_VORTICES,2], minval=-FLUID_SETTINGS["grid_min"])
+radius_init = tf.random.uniform([NB_VORTICES])
+w_init = tf.random.normal([NB_VORTICES])
+
+
+for j in range(SIZE):
+    for i in range(SIZE):
+        point_x = FLUID_SETTINGS["grid_min"]+(i+0.5)*D
+        point_y = FLUID_SETTINGS["grid_min"]+(j+0.5)*D
+        COORDS_X.append(point_x)
+        COORDS_Y.append(point_y)
+
+if len(CONSTRAINT["indices"]) > 0:
+    print("Velocity is constrained")
+    # Check if there is a trajectory constraint
+    CONSTRAINT["values"] = np.array(CONSTRAINT["values"])
+    CONSTRAINT["keyframes"] = [round((i+1)*N_FRAMES/(len(CONSTRAINT["indices"])+1)) for i in range(len(CONSTRAINT["indices"]))]
+    CONSTRAINT["weights"] = [WEIGHT  for _ in range(len(CONSTRAINT["indices"]))]
+else:
+    print("Velocity is NOT constrained")
+    CONSTRAINT = None
+
+BOUNDARY_FUNC = None
+
+dt = FLUID_SETTINGS["timestep"]
+trained_centers, trained_radius, trained_w = train.train_vortices(MAX_ITER, density_init, target_density, N_FRAMES, NB_VORTICES, centers_init, radius_init, w_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, LEARNING_RATE, debug=False)
+
+with open("../output/config.json", 'w') as file:
+    if FLUID_SETTINGS["source"] is not None:
+        FLUID_SETTINGS["source"]["indices"] = FLUID_SETTINGS["source"]["indices"].tolist()
+    json.dump({"MAX_ITER": MAX_ITER,
+               "LEARNING_RATE": LEARNING_RATE,
+               "WEIGHT": WEIGHT,
+               "N_FRAMES": N_FRAMES,
+               "TIMESTEP": str(dt),
+               "GRID_MIN": FLUID_SETTINGS["grid_min"],
+               "GRID_MAX": FLUID_SETTINGS["grid_max"],
+               "NB_VORTICES": NB_VORTICES,
+               "DIFFUSION_COEFF": FLUID_SETTINGS["diffusion_coeff"],
+               "DISSIPATION_RATE": FLUID_SETTINGS["dissipation_rate"],
+               "VISCOSITY": FLUID_SETTINGS["viscosity"],
+               "SOURCE": FLUID_SETTINGS["source"]},
+               file, indent=4)
+    
 

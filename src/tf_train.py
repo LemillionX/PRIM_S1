@@ -305,3 +305,142 @@ def train_scalar_field(_max_iter, _d_init, _target, _nFrames, a_init, _fluidSett
     viz.frames2gif(os.path.join(dir_path, velocity_name), os.path.join(dir_path, velocity_name+".gif"), fps)
     viz.frames2gif(os.path.join(dir_path, density_name), os.path.join(dir_path, density_name+".gif"), fps)
     return trained_a
+
+def train_vortices(_max_iter, _d_init, _target, _nFrames, n_vortices, centers_init, radius_init, w_init, _fluidSettings, _coordsX, _coordsY, _boundary, filename, constraint=None, learning_rate=1.1, debug=False):
+    sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
+    sizeY = int(np.sqrt(len(_target)))           # number of elements in the y-axis
+    assert (sizeX == sizeY), "Dimensions on axis are different !"
+
+
+    timestep = _fluidSettings["timestep"]
+    grid_min = _fluidSettings["grid_min"]
+    grid_max = _fluidSettings["grid_max"]
+    h = (grid_max-grid_min)/sizeX
+    k_diff = _fluidSettings["diffusion_coeff"]
+    alpha = _fluidSettings["dissipation_rate"]
+    visc = _fluidSettings["viscosity"]
+    source = _fluidSettings["source"]
+    keyframes = []
+    keyidx = []
+    keyvalues = []
+    key_weights = []
+    if constraint is not None:
+        keyframes = constraint["keyframes"]
+        keyidx = constraint["indices"]
+        keyvalues = [ [tf.convert_to_tensor(u[0], dtype=tf.float32), tf.convert_to_tensor(u[1], dtype=tf.float32)] for u in constraint["values"]]
+        key_weights = constraint["weights"]
+
+     ## Pre-build matrices
+    laplace_mat =  tf.convert_to_tensor(slv.build_laplacian_matrix(sizeX, sizeY, 1/( h*h), -4/( h*h)), dtype=tf.float32)
+    velocity_diff_mat = tf.convert_to_tensor(slv.build_laplacian_matrix(sizeX, sizeY, -visc*timestep/( h*h), 1+4*visc*timestep/( h*h) ), dtype=tf.float32)
+    scalar_diffuse_mat = tf.convert_to_tensor(slv.build_laplacian_matrix(sizeX, sizeY, -k_diff*timestep/( h*h), 1+4*k_diff*timestep/( h*h) ), dtype=tf.float32)
+
+    ## Converting variables to tensors
+    target_density = tf.convert_to_tensor(_target, dtype=tf.float32)
+    density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
+    dt = tf.convert_to_tensor(timestep, dtype=tf.float32)
+    coords_X = tf.convert_to_tensor(_coordsX, dtype=tf.float32)
+    coords_Y = tf.convert_to_tensor(_coordsY, dtype=tf.float32)
+    coords = tf.stack((coords_X, coords_Y), axis=1)
+    trained_centers = tf.identity(centers_init)
+    trained_radius = tf.identity(radius_init)
+    trained_w = tf.identity(w_init)
+
+   ## Initial guess
+    loss, d_loss, v_loss = loss_quadratic(density_field, target_density)
+    with tf.GradientTape() as tape:
+        trained_centers = tf.Variable(trained_centers)
+        trained_radius = tf.Variable(trained_radius)
+        trained_w = tf.Variable(trained_w)
+        _u_init, _v_init = init_vortices(n_vortices, trained_centers, trained_radius, trained_w, coords, sizeX)
+        velocity_field_x, velocity_field_y = slv.set_boundary(tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32), sizeX, sizeY, _boundary)
+        _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
+        loss,  d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
+    grad = tape.gradient([loss], [trained_centers, trained_radius, trained_w])
+    print("[step 0] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(l_rate=0, loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=(tf.norm(grad[0]) + tf.norm(grad[1]) + tf.norm(grad[2])).numpy()))
+
+    ## Optimisation
+    count = 0
+    while (count < _max_iter and loss > 0.1 and (tf.norm(grad[0]) + tf.norm(grad[1]) + tf.norm(grad[2])).numpy() > 1e-04):
+        # l_rate = learning_rate*abs(tf.random.normal([1]))
+        # l_rate = tf.constant(learning_rate/np.sqrt(count+1,),dtype = tf.float32)
+        l_rate = tf.constant(learning_rate, dtype = tf.float32)
+        density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
+        trained_centers = trained_centers - l_rate*grad[0]
+        trained_radius = trained_radius - l_rate*grad[1]
+        trained_w = trained_w - l_rate*grad[2]
+        with tf.GradientTape() as tape:
+            trained_centers = tf.Variable(trained_centers)
+            trained_radius = tf.Variable(trained_radius)
+            trained_w = tf.Variable(trained_w)
+            _u_init, _v_init = init_vortices(n_vortices, trained_centers, trained_radius, trained_w, coords, sizeX)
+            velocity_field_x, velocity_field_y = slv.set_boundary(tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32), sizeX, sizeY, _boundary)
+            _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
+            loss, d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
+        count += 1
+        grad = tape.gradient([loss], [trained_centers, trained_radius, trained_w])
+        # print(grad)
+        if (count < 3) or (count%10 == 0):
+            if debug:
+                print(midVel)
+            print("[step {count}] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=(tf.norm(grad[0]) + tf.norm(grad[1]) + tf.norm(grad[2])).numpy()))
+
+    if (count < _max_iter and count > 0):
+        print("[step {count}] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=(tf.norm(grad[0]) + tf.norm(grad[1]) + tf.norm(grad[2])).numpy()))
+
+    ## Testing
+    density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
+    _u_init, _v_init = init_vortices(n_vortices, trained_centers, trained_radius, trained_w, coords, sizeX)
+    velocity_field_x, velocity_field_y = slv.set_boundary(tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32), sizeX, sizeY, _boundary)
+
+    ## Plot initialisation 
+    x,y = np.meshgrid(coords_X[:sizeX], coords_Y[::sizeX])
+    fig, ax = plt.subplots(1, 1)
+    ax.set_aspect('equal', adjustable='box')
+    Q = ax.quiver(x, y, tf.reshape(velocity_field_x, shape=(sizeX, sizeY)).numpy(), tf.reshape(velocity_field_y, shape=(sizeX, sizeY)).numpy(), color='red', scale_units='width')
+
+    ## Plot Animation
+    output_dir = "output"
+    velocity_name = filename["velocity"]
+    density_name = filename["density"]
+    dir_path = os.path.join(os.getcwd().rsplit("\\",1)[0], output_dir)
+    save_path =  os.path.join(dir_path, velocity_name)
+    fps = 20
+    if not os.path.isdir(save_path):
+        os.mkdir(save_path)
+    else:
+        for file in os.listdir(save_path):
+            file_path = os.path.join(save_path, file)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f'Error deleting file: {file_path} - {e}')
+    if not os.path.isdir(os.path.join(dir_path, density_name)):
+        os.mkdir(os.path.join(dir_path, density_name))
+    else:
+        for file in os.listdir(os.path.join(dir_path, density_name)):
+            file_path = os.path.join(os.path.join(dir_path, density_name), file)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f'Error deleting file: {file_path} - {e}')
+
+    print("Images will be saved here:", save_path)
+    pbar = tqdm(range(1, _nFrames*2+1), desc = "Simulating....")
+    plt.savefig(os.path.join(save_path, '{:04d}'.format(0)))
+    viz.draw_density(np.flipud(tf.reshape(density_field, shape=(sizeX, sizeY)).numpy()), os.path.join(dir_path, density_name, '{:04d}.png'.format(0)))
+
+    for t in pbar:
+        velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, _boundary, source, t)
+        # Viz update
+        viz.draw_density(np.flipud(tf.reshape(density_field, shape=(sizeX, sizeY)).numpy()), os.path.join(dir_path, density_name, '{:04d}.png'.format(t)))
+        u_viz = tf.reshape(velocity_field_x, shape=(sizeX, sizeY)).numpy()
+        v_viz = tf.reshape(velocity_field_y, shape=(sizeX, sizeY)).numpy()
+        Q.set_UVC(u_viz,v_viz)
+        plt.savefig(os.path.join(save_path, '{:04d}'.format(t)))
+
+    viz.frames2gif(os.path.join(dir_path, velocity_name), os.path.join(dir_path, velocity_name+".gif"), fps)
+    viz.frames2gif(os.path.join(dir_path, density_name), os.path.join(dir_path, density_name+".gif"), fps)
+    return trained_centers, trained_radius, trained_w

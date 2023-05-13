@@ -9,7 +9,7 @@ FILENAME["density"] = "density"
 
 # Simulation settings
 MAX_ITER = 50
-LEARNING_RATE = .5
+LEARNING_RATE = .1
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -27,7 +27,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "snake"
+CONSTRAINT_FILE = "snake_40x40"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -54,7 +54,6 @@ if len(CONSTRAINT["indices"]) > 0:
     print("Velocity is constrained")
     # Check if there is a trajectory constraint
     CONSTRAINT["values"] = np.array(CONSTRAINT["values"])
-    idx = np.array(CONSTRAINT["indices"]).flatten()
     CONSTRAINT["keyframes"] = [round((i+1)*N_FRAMES/(len(CONSTRAINT["indices"])+1)) for i in range(len(CONSTRAINT["indices"]))]
     CONSTRAINT["weights"] = [WEIGHT  for _ in range(len(CONSTRAINT["indices"]))]
 else:

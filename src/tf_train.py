@@ -21,7 +21,7 @@ def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
 def create_vortex(center, r, w, coords, alpha=1.0):
     rel_coords = coords - center
     dist = tf.linalg.norm(rel_coords, axis=-1)
-    smoothed_dist = tf.exp(-tf.pow((dist-r)*alpha/r,2.0))
+    smoothed_dist = tf.exp(-tf.pow(dist*alpha/r,2.0))
     u = w*rel_coords[...,1] * smoothed_dist
     v = - w*rel_coords[..., 0] * smoothed_dist
     return u,v

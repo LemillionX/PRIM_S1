@@ -157,7 +157,7 @@ def project2(u,v, sizeX, sizeY, mat, h, boundary_func):
 def create_vortex(center, r, w, coords, alpha=1.0):
     rel_coords = coords - center
     dist = tf.linalg.norm(rel_coords, axis=-1)
-    smoothed_dist = tf.exp(-tf.pow((dist-r)*alpha/r,2.0))
+    smoothed_dist = tf.exp(-tf.pow(dist*alpha/r,2.0))
     u = w*rel_coords[...,1] * smoothed_dist
     v = - w*rel_coords[..., 0] * smoothed_dist
     return u,v
@@ -290,7 +290,7 @@ if len(sys.argv) > 1:
         D = (GRID_MAX - GRID_MIN)/SIZE
         COORDS_X = []   # x-coordinates of position
         COORDS_Y = []   # y-coordinates of position
-        NB_VORTICES = 3
+        NB_VORTICES = 2
 
         for j in range(SIZE):
             for i in range(SIZE):
@@ -300,7 +300,7 @@ if len(sys.argv) > 1:
                 COORDS_Y.append(point_y)
 
         COORDS = tf.stack((COORDS_X, COORDS_Y), axis=1)
-        centers = tf.Variable(tf.random.uniform([NB_VORTICES,2], minval=-1))
+        centers = tf.Variable(tf.random.uniform([NB_VORTICES,2], minval=GRID_MIN, maxval=GRID_MAX))
         radius = tf.Variable(tf.random.uniform([NB_VORTICES]))
         w = tf.Variable(tf.random.normal([NB_VORTICES]))
         

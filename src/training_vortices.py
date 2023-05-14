@@ -10,9 +10,9 @@ FILENAME["density"] = "density"
 
 # Simulation settings
 MAX_ITER = 50
-NB_VORTICES = 5
-LEARNING_RATE = .05
-WEIGHT = 2
+NB_VORTICES = 3
+LEARNING_RATE = .005
+WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
 FLUID_SETTINGS["timestep"] = 0.025
@@ -29,7 +29,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "snake"
+CONSTRAINT_FILE = "snake_40x40"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -43,7 +43,7 @@ SIZE = int(np.sqrt(len(target_density)))
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
 COORDS_X = []   # x-coordinates of position
 COORDS_Y = []   # y-coordinates of position
-centers_init = tf.random.uniform([NB_VORTICES,2], minval=-FLUID_SETTINGS["grid_min"])
+centers_init = tf.random.uniform([NB_VORTICES,2], minval=FLUID_SETTINGS["grid_min"], maxval=FLUID_SETTINGS["grid_max"])
 radius_init = tf.random.uniform([NB_VORTICES])
 w_init = tf.random.normal([NB_VORTICES])
 
@@ -69,6 +69,7 @@ BOUNDARY_FUNC = None
 
 dt = FLUID_SETTINGS["timestep"]
 trained_centers, trained_radius, trained_w = train.train_vortices(MAX_ITER, density_init, target_density, N_FRAMES, NB_VORTICES, centers_init, radius_init, w_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, LEARNING_RATE, debug=False)
+print("trainded_centers = ", trained_centers)
 
 with open("../output/config.json", 'w') as file:
     if FLUID_SETTINGS["source"] is not None:

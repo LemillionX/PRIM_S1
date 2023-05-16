@@ -1,6 +1,6 @@
 {
-    "MAX_ITER": 50,
-    "LEARNING_RATE": 0.1,
+    "MAX_ITER": 150,
+    "LEARNING_RATE": 1,
     "WEIGHT": 1,
     "N_FRAMES": 80,
     "TIMESTEP": "0.025",

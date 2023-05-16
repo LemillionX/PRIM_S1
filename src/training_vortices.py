@@ -11,7 +11,7 @@ FILENAME["density"] = "density"
 # Simulation settings
 MAX_ITER = 50
 NB_VORTICES = 3
-LEARNING_RATE = .005
+LEARNING_RATE = .1
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -29,7 +29,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "snake_40x40"
+CONSTRAINT_FILE = "snake"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)

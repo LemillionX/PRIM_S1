@@ -61,9 +61,44 @@ def set_solid_boundary(u,v,sizeX,sizeY,b=0):
     new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(sizeX-2, 0, sizeX)] + new_u[indexTo1D(sizeX-1, 1, sizeX)]),0))
     new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(sizeX-2, 0, sizeX)] + new_v[indexTo1D(sizeX-1, 1, sizeX)]),0))
 
-
     return new_u, new_v
 
+@tf.function
+def set_reflexive_boundary(u,v,sizeX,sizeY,b=0):
+    new_u = tf.identity(u)
+    new_v = tf.identity(v)
+    mask_down = tf.expand_dims(tf.range(0, sizeX, 1),1)
+    mask_up = tf.expand_dims(tf.range(sizeX*(sizeY-1), sizeX*sizeY, 1), 1)
+    mask_left = tf.expand_dims(tf.range(0, sizeX*sizeY, sizeX),1)
+    mask_right = tf.expand_dims(tf.range(sizeX-1,sizeX*sizeY,sizeX), 1)
+
+    # Left boundary
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_left, -tf.gather_nd(tf.roll(u, shift=-1, axis=0), mask_left))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_left, tf.gather_nd(tf.roll(v, shift=-1, axis=0), mask_left))
+    # Right boundary
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_right, -tf.gather_nd(tf.roll(u, shift=1, axis=0), mask_right))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_right, tf.gather_nd(tf.roll(v, shift=1, axis=0), mask_right))
+    # Up boundary
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_up, tf.gather_nd(tf.roll(u, shift=sizeX, axis=0), mask_up))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_up, -tf.gather_nd(tf.roll(v, shift=sizeX, axis=0), mask_up))
+    # Down boundary
+    new_u = tf.tensor_scatter_nd_update(new_u, mask_down, tf.gather_nd(tf.roll(u, shift=-sizeX, axis=0), mask_down))
+    new_v = tf.tensor_scatter_nd_update(new_v, mask_down, -tf.gather_nd(tf.roll(v, shift=-sizeX, axis=0), mask_down))
+    
+    # Upper-left corner
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(0, sizeY-2, sizeX)] + new_u[indexTo1D(1, sizeY-1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(0, sizeY-1, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(0, sizeY-2, sizeX)] + new_v[indexTo1D(1, sizeY-1, sizeX)]),0))
+    # Upper-right corner
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(sizeX-1, sizeY-2, sizeX)] + new_u[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, sizeY-1, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(sizeX-1, sizeY-2, sizeX)] + new_v[indexTo1D(sizeX-2, sizeY-1, sizeX)]),0))
+    # Bottom-left corner
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(0, 1, sizeX)] + new_u[indexTo1D(1, 0, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(0, 0, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(0, 1, sizeX)] + new_v[indexTo1D(1, 0, sizeX)]),0))
+    # Bottom-right corner
+    new_u = tf.tensor_scatter_nd_update(new_u, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((new_u[indexTo1D(sizeX-2, 0, sizeX)] + new_u[indexTo1D(sizeX-1, 1, sizeX)]),0))
+    new_v = tf.tensor_scatter_nd_update(new_v, [[indexTo1D(sizeX-1, 0, sizeX)]], 0.5*tf.expand_dims((new_v[indexTo1D(sizeX-2, 0, sizeX)] + new_v[indexTo1D(sizeX-1, 1, sizeX)]),0))
+
+    return new_u, new_v
 
 @tf.function
 def set_scalar_boundary(s, sizeX, sizeY):
@@ -93,7 +128,8 @@ def indexTo1D(i,j, sizeX):
 @tf.function
 def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     if boundary_func is None:
-        return set_solid_boundary(u,v,sizeX,sizeY,b)
+        # return set_solid_boundary(u,v,sizeX,sizeY,b)
+        return set_reflexive_boundary(u,v,sizeX,sizeY,b)
     else:
         return boundary_func(u,v,sizeX,sizeY,b)
 

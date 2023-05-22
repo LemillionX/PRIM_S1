@@ -93,7 +93,10 @@ with open("../output/config.json", 'w') as file:
                "DIFFUSION_COEFF": FLUID_SETTINGS["diffusion_coeff"],
                "DISSIPATION_RATE": FLUID_SETTINGS["dissipation_rate"],
                "VISCOSITY": FLUID_SETTINGS["viscosity"],
-               "SOURCE": FLUID_SETTINGS["source"]},
+               "SOURCE": FLUID_SETTINGS["source"],
+               "trained_u": trained_vel_x.numpy().tolist(),
+               "trained_v": trained_vel_y.numpy().tolist()
+               },
                file, indent=4)
     
 

@@ -29,7 +29,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "snake_40x40"
+CONSTRAINT_FILE = "snake"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -85,7 +85,11 @@ with open("../output/config.json", 'w') as file:
                "DIFFUSION_COEFF": FLUID_SETTINGS["diffusion_coeff"],
                "DISSIPATION_RATE": FLUID_SETTINGS["dissipation_rate"],
                "VISCOSITY": FLUID_SETTINGS["viscosity"],
-               "SOURCE": FLUID_SETTINGS["source"]},
+               "SOURCE": FLUID_SETTINGS["source"],
+               "trained_centers": trained_centers.numpy().tolist(),
+               "trained_radius": trained_radius.numpy().tolist(),
+               "trained_w": trained_w.numpy().tolist()
+               },
                file, indent=4)
     
 

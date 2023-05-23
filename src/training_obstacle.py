@@ -1,9 +1,10 @@
 import tensorflow as tf
 import numpy as np
+import json
 
 FILENAME = {}
-FILENAME["velocity"] = "trained_velocity_obstacle2"
-FILENAME["density"] = "trained_density_obstacle2"
+FILENAME["velocity"] = "trained_velocity_obstacle"
+FILENAME["density"] = "trained_density_obstacle"
 
 density_init=[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
@@ -29,6 +30,10 @@ density_init=[
 ]
 
 target_density =[
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   
  0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,  
  0,0,0,0,0,1,2,2,2,2,2,2,2,1,0,0,0,0,0,0,  
@@ -44,15 +49,13 @@ target_density =[
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
- 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  
  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
-MAX_ITER = 130
+MAX_ITER = 50
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 SIZE = int(np.sqrt(len(target_density)))
+LEARNING_RATE = 0.1
+WEIGHT = 0
 FLUID_SETTINGS = {}
 FLUID_SETTINGS["timestep"] = 0.025
 FLUID_SETTINGS["grid_min"] = -1
@@ -62,7 +65,8 @@ FLUID_SETTINGS["dissipation_rate"] = 0.0
 FLUID_SETTINGS["viscosity"] = 0.0
 FLUID_SETTINGS["source"] = {}
 FLUID_SETTINGS["source"]["value"]=1.0
-FLUID_SETTINGS["source"]["indices"]=[]
+src_indices = np.where(np.array(density_init)==1.0)[0] 
+FLUID_SETTINGS["source"]["indices"]=src_indices.reshape((src_indices.shape[0],1)) 
 FLUID_SETTINGS["source"]["time"]=20
 
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
@@ -79,8 +83,6 @@ for j in range(SIZE):
         if target_density[i + j*SIZE] == 2:
             OBSTACLES.append(i+j*SIZE)
             target_density[i+j*SIZE] = 0
-        if (OFFSET <= i < OFFSET + SOURCE_WIDTH) and (SIZE - (SOURCE_WIDTH+1) <= j <= SIZE - 2):
-            FLUID_SETTINGS["source"]["indices"].append([i+j*SIZE])
         point_x = FLUID_SETTINGS["grid_min"]+(i+0.5)*D
         point_y = FLUID_SETTINGS["grid_min"]+(j+0.5)*D
         COORDS_X.append(point_x)
@@ -107,7 +109,6 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
     return mat
 
 OBSTACLES = tf.expand_dims(tf.convert_to_tensor(OBSTACLES), 1)
-FLUID_SETTINGS["source"]["indices"] = tf.convert_to_tensor(FLUID_SETTINGS["source"]["indices"])
 
 import tf_solver as slv
 import tf_train as train
@@ -153,5 +154,25 @@ def set_obstacles_boundary(u,v,sizeX,sizeY,b=0):
     return new_u, new_v
 
 BOUNDARY_FUNC = set_obstacles_boundary
-trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, debug=False)
+trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, learning_rate=LEARNING_RATE, debug=False)
+
+with open("../output/config_obstacles.json", 'w') as file:
+    if FLUID_SETTINGS["source"] is not None:
+        FLUID_SETTINGS["source"]["indices"] = FLUID_SETTINGS["source"]["indices"].tolist()
+        json.dump({"MAX_ITER": MAX_ITER,
+                "LEARNING_RATE": LEARNING_RATE,
+                "WEIGHT": WEIGHT,
+                "N_FRAMES": N_FRAMES,
+                "TIMESTEP": FLUID_SETTINGS["timestep"],
+                "GRID_MIN": FLUID_SETTINGS["grid_min"],
+                "GRID_MAX": FLUID_SETTINGS["grid_max"],
+                "DIFFUSION_COEFF": FLUID_SETTINGS["diffusion_coeff"],
+                "DISSIPATION_RATE": FLUID_SETTINGS["dissipation_rate"],
+                "VISCOSITY": FLUID_SETTINGS["viscosity"],
+                "SOURCE": FLUID_SETTINGS["source"],
+                "trained_u": trained_vel_x.numpy().tolist(),
+                "trained_v": trained_vel_y.numpy().tolist()
+                },
+                file, indent=4)
+    
 

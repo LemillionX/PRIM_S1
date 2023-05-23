@@ -75,11 +75,11 @@ SOURCE["indices"]= indices.reshape((np.shape(indices)[0], 1))
 SOURCE["time"]=1
 
 
-NB_VORTICES = 5
+NB_VORTICES = 2
 COORDS = tf.stack((COORDS_X, COORDS_Y), axis=1)
-centers = tf.convert_to_tensor([[0.5, -1.2], [-0.5, -0.6], [0, 0.3], [-0.4, 0.4], [-1, 0.25] ]  , dtype=tf.float32)
-radius = 0.2*tf.convert_to_tensor([2.5, 1.5, 1.5, 1, 1.5]  , dtype=tf.float32)
-w = 30*tf.convert_to_tensor([-2, 2.5, -5, 1, 2.5]  , dtype=tf.float32)
+centers = tf.convert_to_tensor([[0.5, -1.2], [-0.5, -0.5], [0, 0.5], [-0.4, 0.4], [-1, 0.25],  [-0.4, 0.3] ]  , dtype=tf.float32)
+radius = 0.2*tf.convert_to_tensor([2.5, 2, 1.5, 1, 1.5, 1.5]  , dtype=tf.float32)
+w = 30*tf.convert_to_tensor([-2, 2.5, -5, 1, 2.5, -7]  , dtype=tf.float32)
 
 
 u_init,v_init = train.init_vortices(NB_VORTICES, centers, radius, w, COORDS, SIZE_X)
@@ -144,14 +144,18 @@ viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).num
 for t in pbar:
     velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, laplace_mat, ALPHA, velocity_diff_mat, VISC, scalar_diffuse_mat, K_DIFF,boundary_func=None, source=SOURCE, t=t)
     
-    # if t == 10:
-    #     u_mid,v_mid = train.create_vortex(centers[-1], radius[-1], w[-1], COORDS) 
-    #     velocity_field_x += u_mid
-    #     velocity_field_y += v_mid
-    # if t == 20:
-    #     u_mid,v_mid = train.create_vortex(centers[2], radius[2], w[2], COORDS)
-    #     velocity_field_x += u_mid
-    #     velocity_field_y += v_mid 
+    if t == 10:
+        u_mid,v_mid = train.create_vortex(centers[-2], radius[-2], w[-2], COORDS) 
+        velocity_field_x += u_mid
+        velocity_field_y += v_mid
+    if t == 20:
+        u_mid,v_mid = train.create_vortex(centers[2], radius[2], w[2], COORDS)
+        velocity_field_x += u_mid
+        velocity_field_y += v_mid
+    if t == 50:
+        u_mid,v_mid = train.create_vortex(centers[-1], radius[-1], w[-1], COORDS)
+        velocity_field_x += u_mid
+        velocity_field_y += v_mid 
     # Viz update
     u_viz = tf.reshape(velocity_field_x, shape=(SIZE_X, SIZE_Y)).numpy()
     v_viz = tf.reshape(velocity_field_y, shape=(SIZE_X, SIZE_Y)).numpy()

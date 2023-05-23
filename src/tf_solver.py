@@ -230,11 +230,9 @@ def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     Returns:
         new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``u``
         new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``v``
-
-
     '''
     if boundary_func is None:
-        # return set_solid_boundary(u,v,sizeX,sizeY,b)
+        return set_solid_boundary(u,v,sizeX,sizeY,b)
         return set_reflexive_boundary(u,v,sizeX,sizeY,b)
     else:
         return boundary_func(u,v,sizeX,sizeY,b)

@@ -9,7 +9,7 @@ FILENAME["density"] = "density"
 
 # Simulation settings
 MAX_ITER = 50
-LEARNING_RATE = .1
+LEARNING_RATE = 1.0
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -20,14 +20,11 @@ FLUID_SETTINGS["diffusion_coeff"] = 0.0
 FLUID_SETTINGS["dissipation_rate"] = 0.0
 FLUID_SETTINGS["viscosity"] = 0.0
 FLUID_SETTINGS["source"] = None
-# FLUID_SETTINGS["source"] = {}
-# FLUID_SETTINGS["source"]["value"]=1.0
-# FLUID_SETTINGS["source"]["indices"]=np.array([[55],[54],[53],[52],[72],[92],[112],[113],[114],[115],[95],[75],[74],[73],[93],[94]])
-# FLUID_SETTINGS["source"]["time"]=20
+
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "snake"
+CONSTRAINT_FILE = "batch1_traj3"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -36,6 +33,14 @@ with open("../data/"+CONSTRAINT_FILE+".json") as file:
 target_density = CONSTRAINT["target_density"][:]
 density_init = CONSTRAINT["init_density"][:]
 SIZE = int(np.sqrt(len(target_density)))
+
+# Source settings
+# FLUID_SETTINGS["source"] = {}
+# FLUID_SETTINGS["source"]["value"]=1.0
+# src_indices = np.where(np.array(density_init)==1.0)[0] 
+# FLUID_SETTINGS["source"]["indices"]=src_indices.reshape((src_indices.shape[0],1)) 
+# FLUID_SETTINGS["source"]["time"]=20
+
 
 # Calculate some useful physicial quantities
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE

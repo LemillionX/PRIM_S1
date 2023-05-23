@@ -9,7 +9,7 @@ FILENAME["density"] = "density"
 
 # Simulation settings
 MAX_ITER = 50
-LEARNING_RATE = 1.0
+LEARNING_RATE = 0.01
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}

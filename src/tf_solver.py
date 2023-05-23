@@ -11,7 +11,7 @@ from termcolor import colored
 from tqdm import tqdm
 
 @tf.function
-def curl2Dvector(a, sizeX):
+def curl2Dvector(a, sizeX, h):
     '''
     Return the 2D curl vector (da/dy, -da/dx) of a 2D scalar field ``a``.
 
@@ -25,7 +25,7 @@ def curl2Dvector(a, sizeX):
     '''
     dx = tf.roll(a, shift=-1, axis=0) - tf.roll(a, shift=1, axis=0)
     dy = tf.roll(a, shift=-sizeX, axis=0) - tf.roll(a, shift=sizeX, axis=0)
-    return dy, -dx
+    return 0.5*dy/h, -0.5*dx/h
 
 @tf.function
 def addSource(s, value=1.0, indices=None):

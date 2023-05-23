@@ -217,7 +217,7 @@ def train_scalar_field(_max_iter, _d_init, _target, _nFrames, a_init, _fluidSett
     loss, d_loss, v_loss = loss_quadratic(density_field, target_density)
     with tf.GradientTape() as tape:
         trained_a = tf.Variable(trained_a)
-        _u_init, _v_init = slv.curl2Dvector(trained_a, sizeX)
+        _u_init, _v_init = slv.curl2Dvector(trained_a, sizeX, h)
         velocity_field_x, velocity_field_y = slv.set_boundary(tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32), sizeX, sizeY, _boundary)
         _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
         loss,  d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
@@ -234,7 +234,7 @@ def train_scalar_field(_max_iter, _d_init, _target, _nFrames, a_init, _fluidSett
         trained_a = trained_a - l_rate*grad[0]
         with tf.GradientTape() as tape:
             trained_a = tf.Variable(trained_a)
-            _u_init, _v_init = slv.curl2Dvector(trained_a, sizeX)
+            _u_init, _v_init = slv.curl2Dvector(trained_a, sizeX, h)
             velocity_field_x, velocity_field_y = slv.set_boundary(tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32), sizeX, sizeY, _boundary)
             _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
             loss, d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
@@ -251,7 +251,7 @@ def train_scalar_field(_max_iter, _d_init, _target, _nFrames, a_init, _fluidSett
 
     ## Testing
     density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
-    _u_init, _v_init = slv.curl2Dvector(trained_a, sizeX)
+    _u_init, _v_init = slv.curl2Dvector(trained_a, sizeX, h)
     velocity_field_x, velocity_field_y = slv.set_boundary(tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32), sizeX, sizeY, _boundary)
 
     ## Plot initialisation 

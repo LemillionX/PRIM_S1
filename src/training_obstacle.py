@@ -54,7 +54,7 @@ target_density =[
 MAX_ITER = 50
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 SIZE = int(np.sqrt(len(target_density)))
-LEARNING_RATE = 0.1
+LEARNING_RATE = 0.5
 WEIGHT = 0
 FLUID_SETTINGS = {}
 FLUID_SETTINGS["timestep"] = 0.025
@@ -87,8 +87,10 @@ for j in range(SIZE):
         point_y = FLUID_SETTINGS["grid_min"]+(j+0.5)*D
         COORDS_X.append(point_x)
         COORDS_Y.append(point_y)
-        u_init.append(0)
-        v_init.append(-20)
+
+u_init = np.random.rand(SIZE * SIZE)
+v_init = np.random.rand(SIZE * SIZE)
+
 
 def build_laplacian_matrix(sizeX,sizeY,a,b):
     mat = np.zeros((sizeX*sizeY,sizeX*sizeY))

@@ -1,3 +1,9 @@
+'''
+A TensorFlow version of a Stable Fluid solver  
+
+:author:    Sammy Rasamimanana
+:year:      2023
+'''
 import tensorflow as tf
 import numpy as np
 import sys
@@ -6,16 +12,49 @@ from tqdm import tqdm
 
 @tf.function
 def curl2Dvector(a, sizeX):
+    '''
+    Return the 2D curl vector (da/dy, -da/dx) of a 2D scalar field ``a``.
+
+    Args:
+        a: A TensorFlow ``tensor`` of shape ``(sizeX, sizeX)`` representing a 2D scalar field in a grid of size ``(sizeX, sizeX)``
+        sizeX: An ``int`` representing the length and the width of the grid
+    
+    Returns:
+        dy: A TensorFlow ``tensor`` of shape ``(sizeX, sizeX)`` representing da/dy
+        -dx: A TensorFlow ``tensor`` of shape ``(sizeX, sizeX)`` representing -da/dx
+    '''
     dx = tf.roll(a, shift=-1, axis=0) - tf.roll(a, shift=1, axis=0)
     dy = tf.roll(a, shift=-sizeX, axis=0) - tf.roll(a, shift=sizeX, axis=0)
     return dy, -dx
 
 @tf.function
 def addSource(s, value=1.0, indices=None):
+    '''
+    Return the updated density grid ``s`` such that ``s[indices]`` = ``value``
+
+    Args:
+        s: A TensorFlow ``tensor`` representing the density grid
+        value: A ``float`` representing the value to put at ``indices``. Default is set yo ``1.0``
+        indices: A TensorFlow ``tensor`` of shape (N, 1, 1) where N is the number of cells to update in the grid ``s``. Default is set to ``None``
+    '''
     return tf.tensor_scatter_nd_update(s, indices, tf.constant(value, shape=[indices.shape[0]], dtype=tf.float32))
 
 @tf.function
 def set_absorbing_boundary(u, v, sizeX, sizeY, b=0):
+    '''
+    Set the boundaries of the grids ``u`` and ``v`` to the value ``b``
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        b: A ``float`` representing the value at the boundaries. Default is set to ``0``
+
+    Returns:
+        new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``u``
+        new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``v``
+    '''
     new_u = tf.identity(u)
     new_v = tf.identity(v)
     mask = tf.logical_or(tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) % sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) % sizeX, sizeX-1)),
@@ -28,6 +67,20 @@ def set_absorbing_boundary(u, v, sizeX, sizeY, b=0):
 
 @tf.function
 def set_solid_boundary(u,v,sizeX,sizeY,b=0):
+    '''
+    Set the boundaries of the grids ``u`` and ``v`` using half-reflection, meaning that vectors are reflected only when they points towards the boundaries. The corners are averaged.
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        b: A ``float``  set to ``0`` to ensure compatibility with customized boundary functions.
+
+    Returns:
+        new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``u``
+        new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``v``
+    '''
     new_u = tf.identity(u)
     new_v = tf.identity(v)
     mask_down = tf.expand_dims(tf.range(0, sizeX, 1),1)
@@ -65,6 +118,20 @@ def set_solid_boundary(u,v,sizeX,sizeY,b=0):
 
 @tf.function
 def set_reflexive_boundary(u,v,sizeX,sizeY,b=0):
+    '''
+    Set the boundaries of the grids ``u`` and ``v`` using reflection, meaning that vectors are reflected at the boundaries. The corners are averaged.
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        b: A ``float``  set to ``0`` to ensure compatibility with customized boundary functions.
+
+    Returns:
+        new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``u``
+        new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``v``
+    '''
     new_u = tf.identity(u)
     new_v = tf.identity(v)
     mask_down = tf.expand_dims(tf.range(0, sizeX, 1),1)
@@ -102,6 +169,17 @@ def set_reflexive_boundary(u,v,sizeX,sizeY,b=0):
 
 @tf.function
 def set_scalar_boundary(s, sizeX, sizeY):
+    '''
+    Set the boundaries of the grids ``s`` by duplicating the values at the boundaries.
+
+    Args:
+        s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+
+    Returns:
+        new_s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``s``
+    '''
     new_s = tf.identity(s)
     mask_down = tf.expand_dims(tf.range(0, sizeX, 1),1)
     mask_up = tf.expand_dims(tf.range(sizeX*(sizeY-1), sizeX*sizeY, 1), 1)
@@ -123,10 +201,38 @@ def set_scalar_boundary(s, sizeX, sizeY):
 
 @tf.function
 def indexTo1D(i,j, sizeX):
+    '''
+    Gives the 1D index of the 2D index ``[i,j]`` for a 1D grid of size ``sizeX*sizeX`` representing a 2D Grid of shape ``(sizeX, sizeX)``
+
+    Args:
+        i: An int 
+        j: An int 
+        sizeX: An int
+
+    Returns:
+        ``i+j*sizeX``: An int
+    '''
     return j*sizeX+i
 
 @tf.function
 def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
+    '''
+    Applies the boundary function ``boundary_func`` to ``u`` and ``v``.
+    
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the reflexive boundaries are applied.
+        b: A ``float``  set to ``0`` to ensure compatibility with customized boundary functions.
+
+    Returns:
+        new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``u``
+        new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``v``
+
+
+    '''
     if boundary_func is None:
         # return set_solid_boundary(u,v,sizeX,sizeY,b)
         return set_reflexive_boundary(u,v,sizeX,sizeY,b)
@@ -135,6 +241,21 @@ def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
 
 @tf.function
 def sampleAt(x,y, data, sizeX, sizeY, offset, d):
+    '''
+    Performs bilinear interpolation on point ``(x,y)`` in the grid ``data``.
+
+    Args:
+        x: A ``float`` \n
+        y: A ``float`` \n
+        data: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` where we want the value to be interpolated \n
+        sizeX: An ``int`` representing the number of horizontal cells \n
+        sizeY: An ``int`` representing the number of vertical cells \n
+        offset: A ``float`` such that the value at the bottom-left corner of ``data`` is the value at point ``(offset, offset)`` \n
+        d: A ``float`` representing the size of the cells of ``data``
+
+    Returns:
+        The bilinear interpolated value ``data[x,y]``
+    '''
     _x = (x - offset)/d - 0.5
     _y = (y - offset)/d - 0.5
     i0 = tf.clip_by_value(tf.floor(_x), 0, sizeX-1)
@@ -156,13 +277,40 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
 
 @tf.function
 def advectCentered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
+    '''
+    Advects the scalar field ``f`` on the velocity field ``(u,v)``.
+
+    Args:
+        f: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` to advect
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-component of the fluid velocity field
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-component of the fluid velocity field
+        coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid
+        dt: A ``float`` representing the timestep of the simulation
+        offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        d: A ``float`` representing the size of the cells of the grid
+
+    Returns:
+        u1: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the advected ``f``
+    '''
     traced_x = tf.clip_by_value(coords_x - dt*u, offset + 0.5*d, offset + (sizeX-0.5)*d )
     traced_y = tf.clip_by_value(coords_y - dt*v, offset + 0.5*d, offset + (sizeY-0.5)*d)
     u1 = tf.vectorized_map(fn=lambda x: sampleAt(x[0],x[1],f,sizeX,sizeY, offset, d), elems=(traced_x, traced_y))
-    # return set_boundary(u1, sizeX, sizeY)
     return u1
 
 def build_laplacian_matrix(sizeX,sizeY,a,b):
+    '''
+    Build a Laplacian Matrix where the diagonal is full of ``b``, and adjacent cells are equals to ``a``. Can take a bit long to execute if the grid is large.
+    
+    Args:
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        a: A ``float`` for the value of the adjacent cells
+        b: A ``float`` for the value of the diagonal
+
+    Returns:
+        mat: A Numpy array of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix
+    '''
     mat = np.zeros((sizeX*sizeY,sizeX*sizeY))
     for it in range(sizeX*sizeY):
         i = it%sizeX
@@ -179,11 +327,33 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
     return mat
 
 def diffuse(f, mat):
+    '''
+    Diffuses the scalar field ``f`` using a matrix ``mat``.
+
+    Args:
+        f: A TensorFlow tensor of shape (N*N,)
+        mat: A TensorFlow tensor of shape (N*N, N*N)
+    Returns:
+        A TensorFlow ``tensor`` of shape (N*N, 1) representing the diffused f
+    '''
     if tf.rank(f).numpy() < 2:
         f = tf.expand_dims(f, 1)
     return tf.linalg.solve(mat,f)
 
 def solvePressure(u, v, sizeX, sizeY, h, mat):
+    '''
+    Find the gradient field (irrotational vector field) of the Helmholtz decomposition.
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        h: A ``float`` representing the size of the cells of the grid
+        mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to solve the Poisson equation
+    Returns:
+        q: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY, 1)`` representing the irrotational vector field of the Helmholtz decomposition
+    '''
     dx = tf.roll(u, shift=-1, axis=0) - tf.roll(u, shift=1, axis=0)
     dy = tf.roll(v, shift=-sizeX, axis=0) - tf.roll(v, shift=sizeX, axis=0)
     div = (dx + dy)*0.5/h
@@ -193,6 +363,20 @@ def solvePressure(u, v, sizeX, sizeY, h, mat):
     return tf.linalg.solve(mat, div)
 
 def project(u,v, sizeX, sizeY, mat, h, boundary_func):
+    '''
+    Projects the velocity field ``(u,v)`` such that it is divergence-free
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)`` for the x-component of the velocity field
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)`` for the y-component of the velocity field
+        h: A ``float`` representing the size of the cells of the grid
+        mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to solve the Poisson equation 
+        boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the reflexive boundaries are applied.
+    Returns:
+        new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the divergence-free version of ``u`` with boundary conditions
+        new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the divergence-free version of ``v`` with boundary conditions
+    '''
+
     _u, _v = set_boundary(u,v, sizeX, sizeY, boundary_func)
     p = solvePressure(_u,_v,sizeX,sizeY,h, mat)[..., 0]
     p = set_scalar_boundary(p, sizeX, sizeY)
@@ -205,9 +389,44 @@ def project(u,v, sizeX, sizeY, mat, h, boundary_func):
     return set_boundary(new_u, new_v, sizeX, sizeY,boundary_func)
 
 def dissipate(s,a,dt):
+    '''
+    Dissipates the scalar field ``s``
+
+    Args:
+        s: A TensorFlow ``tensor`` 
+        a: A ``float`` representing the dissipation rate
+        dt: A ``float`` representing the time step
+    '''
     return s/(1+dt*a)
 
 def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
+    '''
+    Perfomrs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s
+
+    Args:
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _sizeX: An ``int`` representing the number of horizontal cells
+        _sizeY: An ``int`` representing the number of vertical cells
+        _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        _coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
+        _dt: A ``float`` representing the timestep of the simulation
+        _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        _h: A ``float`` representing the size of the cells of the grid
+        _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
+        _alpha: A ``float`` representing the dissipation rate
+        _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity
+        _visc: A ``float`` representing the fluid's viscosity
+        _sDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse density
+        _visc: A ``float`` representing the diffusion rate of the density
+        boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the reflexive boundaries are applied.
+        source: A ``dict`` representing a density source. Default is set to ``None``, meaning there is no source
+                ``source["time"]`` is an ``int`` indicating the last frame where the source exists \n
+                ``source["value"]`` is a ``float`` representing its value \n
+                ``source["indices"]`` is a TensorFlow ``tensor`` of shape (N,1,1) that indicates all the indices in the density grid ``_s`` where the source should be
+        t: An ``int`` representing the current frame. Default is set to ``np.inf``, meaning we don't need to know the current frame number
+    '''
     ## Vstep
     # advection step
     new_u = advectCentered(_u, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
@@ -222,7 +441,6 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
         _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func) 
     # projection step
     _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h, boundary_func)
-
 
     ## Sstep
     if (source is not None) and (t < source["time"]) :
@@ -244,6 +462,39 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     return _u, _v, _s
 
 def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, leave=True):
+    '''
+    Performs a fluid simulation of the velocity field ``(_u,_v)`` and the density field ``_s`` over ``n_iter`` frames
+
+    Args:
+        n_iter: An ``int`` representing the number of frames of the simulation
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _sizeX: An ``int`` representing the number of horizontal cells
+        _sizeY: An ``int`` representing the number of vertical cells
+        _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        _coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
+        _dt: A ``float`` representing the timestep of the simulation
+        _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        _h: A ``float`` representing the size of the cells of the grid
+        _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
+        _alpha: A ``float`` representing the dissipation rate
+        _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity
+        _visc: A ``float`` representing the fluid's viscosity
+        _sDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse density
+        _kDiff: A ``float`` representing the diffusion rate of the density
+        boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the reflexive boundaries are applied.
+        source: A ``dict`` representing a density source. Default is set to ``None``, meaning there is no source
+                ``source["time"]`` is an ``int`` indicating the last frame where the source exists \n
+                ``source["value"]`` is a ``float`` representing its value \n
+                ``source["indices"]`` is a TensorFlow ``tensor`` of shape (N,1,1) that indicates all the indices in the density grid ``_s`` where the source should be
+        leave: A bool indicating if we want or not to clear the tqdm bar at each iteration
+        
+    Returns:
+        new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity field at the end of the simulation
+        new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity field at the end of the simulation
+        new_s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density field at the end of the simulation
+    '''
     for t in tqdm(range(1, n_iter+1), desc = "Simulating....", leave=leave):
         new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff,boundary_func, source, t)
         _u = new_u
@@ -252,6 +503,44 @@ def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offse
     return new_u, new_v, new_s
 
 def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, keyframes=[], keyidx=[], boundary_func=None, source=None, leave=True):
+    '''
+    Performs a fluid simulation of the velocity field ``(_u,_v)`` and the density field ``_s`` over ``n_iter`` frames.
+    This version stores intermediates states of some cells ``keyidx`` of the grid at ``keyframes``
+
+    Args:
+        n_iter: An ``int`` representing the number of frames of the simulation
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _sizeX: An ``int`` representing the number of horizontal cells
+        _sizeY: An ``int`` representing the number of vertical cells
+        _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        _coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
+        _dt: A ``float`` representing the timestep of the simulation
+        _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        _h: A ``float`` representing the size of the cells of the grid
+        _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
+        _alpha: A ``float`` representing the dissipation rate
+        _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity
+        _visc: A ``float`` representing the fluid's viscosity
+        _sDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse density
+        _kDiff: A ``float`` representing the diffusion rate of the density
+        keyframes: A ``list`` or Numpy ``array`` of dimension 1 of ``int`` representing the frames when we want to keep track of the fluid's state
+        keyidx: A ``list`` or Numpy ``array`` of dimension 1 of ``int`` representing the indices of the cells when we want to keep track of
+        boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the reflexive boundaries are applied.
+        source: A ``dict`` representing a density source. Default is set to ``None``, meaning there is no source
+                ``source["time"]`` is an ``int`` indicating the last frame where the source exists \n
+                ``source["value"]`` is a ``float`` representing its value \n
+                ``source["indices"]`` is a TensorFlow ``tensor`` of shape (N,1,1) that indicates all the indices in the density grid ``_s`` where the source should be
+        leave: A bool indicating if we want or not to clear the tqdm bar at each iteration
+
+    Returns:
+        new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity field at the end of the simulation
+        new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity field at the end of the simulation
+        new_s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density field at the end of the simulation
+        midVel: A list of [``tensor``, ``tensor``] representing the intermediates states of some cells 
+    '''
+
     _midVel = []
     count = -1
     for t in tqdm(range(1, n_iter+1), desc = "Simulating....", leave=leave):

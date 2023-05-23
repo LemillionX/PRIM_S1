@@ -1,4 +1,5 @@
 import tf_train as train
+import tensorflow as tf
 import numpy as np
 import json
 import os

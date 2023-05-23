@@ -10,8 +10,8 @@ FILENAME["density"] = "density"
 
 # Simulation settings
 MAX_ITER = 50
-NB_VORTICES = 5
-LEARNING_RATE = .1
+NB_VORTICES = 4
+LEARNING_RATE = .01
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -46,6 +46,13 @@ COORDS_Y = []   # y-coordinates of position
 centers_init = tf.random.uniform([NB_VORTICES,2], minval=FLUID_SETTINGS["grid_min"], maxval=FLUID_SETTINGS["grid_max"])
 radius_init = tf.random.uniform([NB_VORTICES])
 w_init = tf.random.normal([NB_VORTICES])
+
+centers_init = tf.convert_to_tensor([[0.5, -1.2], [-0.3, -0.5], [0.1, 0], [-0.4, 0.4] ]  , dtype=tf.float32)
+radius_init = 0.4*tf.convert_to_tensor([1, 1, 1, 1]  , dtype=tf.float32)
+w_init = 30*tf.convert_to_tensor([-1, 1, -0.5, 3.5]  , dtype=tf.float32)
+
+radius_init = tf.Variable(0.4*tf.ones([NB_VORTICES], dtype=tf.float32)) 
+w_init = tf.Variable(0.1*tf.convert_to_tensor([1, 1, -2, 2]  , dtype=tf.float32))
 
 
 for j in range(SIZE):

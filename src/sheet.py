@@ -290,7 +290,7 @@ if len(sys.argv) > 1:
         D = (GRID_MAX - GRID_MIN)/SIZE
         COORDS_X = []   # x-coordinates of position
         COORDS_Y = []   # y-coordinates of position
-        NB_VORTICES = 2
+        NB_VORTICES = 4
 
         for j in range(SIZE):
             for i in range(SIZE):
@@ -300,9 +300,15 @@ if len(sys.argv) > 1:
                 COORDS_Y.append(point_y)
 
         COORDS = tf.stack((COORDS_X, COORDS_Y), axis=1)
+        centers_init = tf.convert_to_tensor([[0.5, -0.6], [-0.3, -0.5], [0.1, 0], [-0.4, 0.4] ]  , dtype=tf.float32)
+
         centers = tf.Variable(tf.random.uniform([NB_VORTICES,2], minval=GRID_MIN, maxval=GRID_MAX))
-        radius = tf.Variable(tf.random.uniform([NB_VORTICES]))
-        w = tf.Variable(tf.random.normal([NB_VORTICES]))
+        centers = tf.Variable(centers_init)
+        # radius = tf.Variable(tf.random.uniform([NB_VORTICES]))
+        radius = tf.Variable(0.4*tf.convert_to_tensor([1, 1, 1, 1]  , dtype=tf.float32)) 
+        # w = tf.Variable(tf.random.normal([NB_VORTICES]))
+        w = tf.Variable(0.1*tf.convert_to_tensor([1, 1, -2, 2]  , dtype=tf.float32)) 
+
         
         # Gradient
         with tf.GradientTape() as tape:

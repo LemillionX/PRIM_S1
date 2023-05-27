@@ -70,9 +70,7 @@ COORDS_Y = tf.convert_to_tensor(COORDS_Y, dtype=tf.float32)
 x,y = np.meshgrid(COORDS_X[:SIZE_X], COORDS_Y[::SIZE_X])
 fig, ax = plt.subplots(1, 1)
 ax.set_aspect('equal', adjustable='box')
-Q = ax.quiver(x, y, viz.tensorToGrid(u_init, SIZE_X, SIZE_Y), viz.tensorToGrid(v_init, SIZE_X, SIZE_Y), color='red', scale_units='width')
-
-
+Q = ax.quiver(x, y, tf.reshape(u_init, shape=(SIZE_X, SIZE_Y)).numpy(), tf.reshape(v_init, shape=(SIZE_X, SIZE_Y)).numpy(), color='red', scale_units='width')
 
 ##############################################################
 #               Plot Animation

@@ -274,9 +274,31 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     return t_i0*t_j0*p00 + t_i0*t_j1*p01 + t_i1*t_j0*p10 + t_i1*t_j1*p11
 
 @tf.function
+def advectStaggeredU(u,v,sizeX, sizeY, coords_x, coords_y, dt, offset, d):
+    v_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset ,d), elems=(coords_x - 0.5*d, coords_y + 0.5*d))
+    traced_x_u = coords_x - dt*u
+    traced_y_u = coords_y - dt*v_u
+    return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(traced_x_u, traced_y_u))
+
+@tf.function
+def advectStaggeredV(u, v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
+    u_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y - 0.5*d))
+    traced_x_v = coords_x - dt*u_v
+    traced_y_v = coords_y - dt*v
+    return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(traced_x_v, traced_y_v))
+
+@tf.function
+def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
+    u_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
+    v_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
+    traced_x = coords_x - dt*u_f
+    traced_y = coords_y - dt*v_f
+    return tf.vectorized_map(fn=lambda x: (x[0], x[1], f, sizeX, sizeY, offset, d), elems=(traced_x, traced_y))
+
+@tf.function
 def advectCentered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     '''
-    Advects the scalar field ``f`` on the velocity field ``(u,v)``.
+    Advects the scalar field ``f`` on the velocity field ``(u,v)`` using centered grid.
 
     Args:
         f: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` to advect

@@ -436,7 +436,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     if _visc > 0:
         _u = diffuse(_u, _vDiff_mat)[..., 0]
         _v = diffuse(_v, _vDiff_mat)[..., 0]
-        _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func) 
+    _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func) 
     # projection step
     _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h, boundary_func)
 

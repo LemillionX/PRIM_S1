@@ -1,5 +1,5 @@
 '''
-A TensorFlow version of a Stable Fluid solver  
+A TensorFlow version of a Stable Fluid solver using Centered Grid 
 
 :author:    Sammy Rasamimanana
 :year:      2023
@@ -274,31 +274,9 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     return t_i0*t_j0*p00 + t_i0*t_j1*p01 + t_i1*t_j0*p10 + t_i1*t_j1*p11
 
 @tf.function
-def advectStaggeredU(u,v,sizeX, sizeY, coords_x, coords_y, dt, offset, d):
-    v_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset ,d), elems=(coords_x - 0.5*d, coords_y + 0.5*d))
-    traced_x_u = coords_x - dt*u
-    traced_y_u = coords_y - dt*v_u
-    return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(traced_x_u, traced_y_u))
-
-@tf.function
-def advectStaggeredV(u, v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
-    u_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y - 0.5*d))
-    traced_x_v = coords_x - dt*u_v
-    traced_y_v = coords_y - dt*v
-    return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(traced_x_v, traced_y_v))
-
-@tf.function
-def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
-    u_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
-    v_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
-    traced_x = coords_x - dt*u_f
-    traced_y = coords_y - dt*v_f
-    return tf.vectorized_map(fn=lambda x: (x[0], x[1], f, sizeX, sizeY, offset, d), elems=(traced_x, traced_y))
-
-@tf.function
 def advectCentered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     '''
-    Advects the scalar field ``f`` on the velocity field ``(u,v)`` using centered grid.
+    Advects the scalar field ``f`` on the velocity field ``(u,v)`` using Centered Grid.
 
     Args:
         f: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` to advect
@@ -362,7 +340,7 @@ def diffuse(f, mat):
 
 def solvePressure(u, v, sizeX, sizeY, h, mat):
     '''
-    Find the gradient field (irrotational vector field) of the Helmholtz decomposition.
+    Find the gradient field (irrotational vector field) of the Helmholtz decomposition using Centered Grid.
 
     Args:
         u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
@@ -384,7 +362,7 @@ def solvePressure(u, v, sizeX, sizeY, h, mat):
 
 def project(u,v, sizeX, sizeY, mat, h, boundary_func):
     '''
-    Projects the velocity field ``(u,v)`` such that it is divergence-free
+    Projects the velocity field ``(u,v)`` such that it is divergence-free, using Centered Grid
 
     Args:
         u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)`` for the x-component of the velocity field
@@ -421,7 +399,7 @@ def dissipate(s,a,dt):
 
 def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
     '''
-    Perfomrs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s
+    Perfomrs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
     Args:
         _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``

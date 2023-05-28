@@ -1,4 +1,5 @@
-import np_solver as slv
+import tensorflow as tf
+import tf_solver_staggered as slv
 import numpy as np
 import viz as viz
 import matplotlib.pyplot as plt
@@ -10,10 +11,10 @@ from tqdm import tqdm
 #               General settings
 ##############################################################
 
-SIZE_X = 69          # number of elements in the x-axis
-SIZE_Y = 69          # number of elements in the y-axis
+SIZE_X = 20          # number of elements in the x-axis
+SIZE_Y = 20          # number of elements in the y-axis
 TIMESTEP = 0.025
-N_FRAMES = 100     # number of frames to draw
+N_FRAMES = 200     # number of frames to draw
 GRID_MIN = -1
 GRID_MAX = 1
 D = (GRID_MAX-GRID_MIN)/SIZE_X
@@ -26,6 +27,7 @@ ALPHA = 0.0       #dissipation rate
 VISC = 0.0
 VORTEX_RADIUS = 0.5*(GRID_MAX - GRID_MIN)/2.0
 VORTEX_CENTER = np.array([GRID_MIN + D*(int(SIZE_X/2) + 0.5), GRID_MIN + D*(int(SIZE_Y/2)+0.5)  ])
+VORTEX_MAGNITUDE = 5
 #################################################################
 # Initialisation
 #################################################################
@@ -44,23 +46,24 @@ for j in range(SIZE_Y):
         COORDS_Y.append(point_y)
         r = np.linalg.norm( np.array([point_x, point_y]) - VORTEX_CENTER )
         if r < VORTEX_RADIUS:
-            u_init.append(10*point_y)
-            v_init.append(-10*point_x)
+            u_init.append(VORTEX_MAGNITUDE*point_y)
+            v_init.append(-VORTEX_MAGNITUDE*point_x)
             density_init.append(1.0)
         else:
             u_init.append(0)
             v_init.append(0)
             density_init.append(0.0)
-        # v_init.append(np.sin(2*np.pi*point_x))
 
 ## Initialise variables
-laplace_mat = slv.build_laplacian_matrix(SIZE_X, SIZE_Y, 1/(D*D), -4/(D*D))
-velocity_diff_mat = slv.build_laplacian_matrix(SIZE_X, SIZE_Y, -VISC*TIMESTEP/(D*D), 1+4*VISC*TIMESTEP/(D*D) )
-scalar_diffuse_mat = slv.build_laplacian_matrix(SIZE_X, SIZE_Y, -K_DIFF*TIMESTEP/(D*D), 1+4*K_DIFF*TIMESTEP/(D*D) )
-velocity_field_x = np.array(u_init)
-velocity_field_y = np.array(v_init)
-density_field =density_init
-dt = TIMESTEP
+laplace_mat =  tf.convert_to_tensor(slv.build_laplacian_matrix(SIZE_X, SIZE_Y, 1/(D*D), -4/(D*D)), dtype=tf.float32)
+velocity_diff_mat = tf.convert_to_tensor(slv.build_laplacian_matrix(SIZE_X, SIZE_Y, -VISC*TIMESTEP/(D*D), 1+4*VISC*TIMESTEP/(D*D) ), dtype=tf.float32)
+scalar_diffuse_mat = tf.convert_to_tensor(slv.build_laplacian_matrix(SIZE_X, SIZE_Y, -K_DIFF*TIMESTEP/(D*D), 1+4*K_DIFF*TIMESTEP/(D*D) ), dtype=tf.float32)
+velocity_field_x = tf.convert_to_tensor(u_init, dtype=tf.float32)
+velocity_field_y = tf.convert_to_tensor(v_init, dtype=tf.float32)
+density_field = tf.convert_to_tensor(density_init, dtype=tf.float32)
+dt = tf.convert_to_tensor(TIMESTEP, dtype=tf.float32)
+COORDS_X = tf.convert_to_tensor(COORDS_X, dtype=tf.float32)
+COORDS_Y = tf.convert_to_tensor(COORDS_Y, dtype=tf.float32)
 
 ##############################################################
 #               Plot initialisation 
@@ -68,9 +71,8 @@ dt = TIMESTEP
 x,y = np.meshgrid(COORDS_X[:SIZE_X], COORDS_Y[::SIZE_X])
 fig, ax = plt.subplots(1, 1)
 ax.set_aspect('equal', adjustable='box')
-Q = ax.quiver(x, y, viz.tensorToGrid(u_init, SIZE_X, SIZE_Y), viz.tensorToGrid(v_init, SIZE_X, SIZE_Y), color='red', scale_units='width')
-
-
+vel_x, vel_y = slv.velocityCentered(velocity_field_x,velocity_field_y, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, GRID_MIN, D)
+Q = ax.quiver(x, y, tf.reshape(vel_x, shape=(SIZE_X, SIZE_Y)).numpy(), tf.reshape(vel_y, shape=(SIZE_X, SIZE_Y)).numpy(), color='red', scale_units='width')
 
 ##############################################################
 #               Plot Animation
@@ -81,22 +83,41 @@ DENSITY_NAME = "vortex_density_"+str(SIZE_X)+"x"+str(SIZE_Y)
 DIR_PATH = os.path.join(os.getcwd().rsplit("\\",1)[0], OUTPUT_DIR)
 SAVE_PATH =  os.path.join(DIR_PATH, FOLDER_NAME)
 FPS = 20
-if not os.path.isdir(SAVE_PATH):
-    os.mkdir(SAVE_PATH)
+if SIZE_X < RESOLUTION_LIMIT:
+    if not os.path.isdir(SAVE_PATH):
+        os.mkdir(SAVE_PATH)
+    else:
+        for file in os.listdir(SAVE_PATH):
+            file_path = os.path.join(SAVE_PATH, file)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f'Error deleting file: {file_path} - {e}')
 if not os.path.isdir(os.path.join(DIR_PATH, DENSITY_NAME)):
     os.mkdir(os.path.join(DIR_PATH, DENSITY_NAME))
+else:
+    for file in os.listdir(os.path.join(DIR_PATH, DENSITY_NAME)):
+        file_path = os.path.join(os.path.join(DIR_PATH, DENSITY_NAME), file)
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f'Error deleting file: {file_path} - {e}')
 
 print(SAVE_PATH)
 pbar = tqdm(range(1, N_FRAMES+1), desc = "Simulating....")
+viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).numpy()), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(0)))
 if SIZE_X < RESOLUTION_LIMIT:
     plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(0)))
 for t in pbar:
     velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, laplace_mat, ALPHA, velocity_diff_mat, VISC, scalar_diffuse_mat, K_DIFF)
     # Viz update
-    viz.draw_density(viz.tensorToGrid(density_field, SIZE_X, SIZE_Y), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(t)))
+    viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).numpy()), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(t)))
     if SIZE_X < RESOLUTION_LIMIT:
-        u_viz = viz.tensorToGrid(velocity_field_x, SIZE_X, SIZE_Y)
-        v_viz = viz.tensorToGrid(velocity_field_y, SIZE_X, SIZE_Y)
+        vel_x, vel_y = slv.velocityCentered(velocity_field_x,velocity_field_y, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, GRID_MIN, D)
+        u_viz = tf.reshape(vel_x, shape=(SIZE_X, SIZE_Y)).numpy()
+        v_viz = tf.reshape(vel_y, shape=(SIZE_X, SIZE_Y)).numpy()
         Q.set_UVC(u_viz,v_viz)
         plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(t)))
 

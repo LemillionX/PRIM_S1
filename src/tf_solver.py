@@ -1,5 +1,5 @@
 '''
-A TensorFlow version of a Stable Fluid solver  
+A TensorFlow version of a Stable Fluid solver using Centered Grid 
 
 :author:    Sammy Rasamimanana
 :year:      2023
@@ -276,7 +276,7 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
 @tf.function
 def advectCentered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     '''
-    Advects the scalar field ``f`` on the velocity field ``(u,v)``.
+    Advects the scalar field ``f`` on the velocity field ``(u,v)`` using Centered Grid.
 
     Args:
         f: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` to advect
@@ -340,7 +340,7 @@ def diffuse(f, mat):
 
 def solvePressure(u, v, sizeX, sizeY, h, mat):
     '''
-    Find the gradient field (irrotational vector field) of the Helmholtz decomposition.
+    Find the gradient field (irrotational vector field) of the Helmholtz decomposition using Centered Grid.
 
     Args:
         u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
@@ -362,7 +362,7 @@ def solvePressure(u, v, sizeX, sizeY, h, mat):
 
 def project(u,v, sizeX, sizeY, mat, h, boundary_func):
     '''
-    Projects the velocity field ``(u,v)`` such that it is divergence-free
+    Projects the velocity field ``(u,v)`` such that it is divergence-free, using Centered Grid
 
     Args:
         u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)`` for the x-component of the velocity field
@@ -399,7 +399,7 @@ def dissipate(s,a,dt):
 
 def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
     '''
-    Perfomrs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s
+    Perfomrs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
     Args:
         _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
@@ -436,7 +436,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     if _visc > 0:
         _u = diffuse(_u, _vDiff_mat)[..., 0]
         _v = diffuse(_v, _vDiff_mat)[..., 0]
-        _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func) 
+    _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func) 
     # projection step
     _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h, boundary_func)
 

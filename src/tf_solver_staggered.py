@@ -165,24 +165,30 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
 @tf.function
 def advectStaggeredU(u,v,sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     v_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset ,d), elems=(coords_x - 0.5*d, coords_y + 0.5*d))
-    traced_x_u = coords_x - dt*u
-    traced_y_u = coords_y - dt*v_u
-    return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(traced_x_u, traced_y_u))
+    traced_x_u = tf.clip_by_value(coords_x -0.5*d- dt*u, offset, offset + sizeX*d)
+    traced_y_u = tf.clip_by_value(coords_y - dt*v_u, offset, offset + sizeY*d)
+    return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(traced_x_u + 0.5*d, traced_y_u))
 
 @tf.function
 def advectStaggeredV(u, v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     u_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y - 0.5*d))
-    traced_x_v = coords_x - dt*u_v
-    traced_y_v = coords_y - dt*v
-    return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(traced_x_v, traced_y_v))
+    traced_x_v = tf.clip_by_value(coords_x - dt*u_v, offset, offset + sizeX*d)
+    traced_y_v = tf.clip_by_value(coords_y - 0.5*d - dt*v, offset, offset + sizeY*d)
+    return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(traced_x_v, traced_y_v + 0.5*d))
 
 @tf.function
 def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     u_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
     v_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
-    traced_x = coords_x - dt*u_f
-    traced_y = coords_y - dt*v_f
+    traced_x = tf.clip_by_value(coords_x - dt*u_f, offset, offset + sizeX*d)
+    traced_y = tf.clip_by_value(coords_y - dt*v_f, offset, offset + sizeY*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], f, sizeX, sizeY, offset, d), elems=(traced_x, traced_y))
+
+@tf.function
+def velocityCentered(u,v,sizeX, sizeY, coords_x, coords_y, offset, d):
+    vel_x = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
+    vel_y = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
+    return vel_x, vel_y
 
 def build_laplacian_matrix(sizeX,sizeY,a,b):
     '''
@@ -201,15 +207,18 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
     for it in range(sizeX*sizeY):
         i = it%sizeX
         j = it//sizeX
-        mat[it,it] = b
         if (i>0):
             mat[it,it-1] = a
+            mat[it,it] += b/4
         if (i<sizeX-1):
             mat[it, it+1] = a
+            mat[it, it] += b/4
         if (j>0):
             mat[it,it-sizeX] = a
+            mat[it,it] += b/4
         if (j<sizeY-1):
             mat[it, it+sizeX] = a
+            mat[it,it] += b/4
     return mat
 
 def diffuse(f, mat):
@@ -239,7 +248,7 @@ def project(u,v,sizeX,sizeY,mat,h,boundary_func):
     _u, _v = set_boundary(u,v,sizeX, sizeY, boundary_func)
     p = solvePressure(_u, _v, sizeX, sizeY, h, mat)[...,0]
 
-    gradP_u = (tf.roll(p, shift=-1, axis=0) - p)/h
+    gradP_u = (p - tf.roll(p, shift=1, axis=0))/h
     gradP_v = (p - tf.roll(p, shift=sizeY, axis=0))/h
     gradP_u, gradP_v = set_solid_boundary(gradP_u, gradP_v, sizeX, sizeY)
     
@@ -260,7 +269,7 @@ def dissipate(s,a,dt):
 
 def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
     '''
-    Perfomrs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
+    Performs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
     Args:
         _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
@@ -297,7 +306,8 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     if _visc > 0:
         _u = diffuse(_u, _vDiff_mat)[..., 0]
         _v = diffuse(_v, _vDiff_mat)[..., 0]
-        _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func) 
+        _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func)
+
     # projection step
     _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h, boundary_func)
 

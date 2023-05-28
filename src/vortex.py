@@ -1,5 +1,5 @@
 import tensorflow as tf
-import tf_solver as slv
+import tf_solver_staggered as slv
 import numpy as np
 import viz as viz
 import matplotlib.pyplot as plt
@@ -11,8 +11,8 @@ from tqdm import tqdm
 #               General settings
 ##############################################################
 
-SIZE_X = 25          # number of elements in the x-axis
-SIZE_Y = 25          # number of elements in the y-axis
+SIZE_X = 20          # number of elements in the x-axis
+SIZE_Y = 20          # number of elements in the y-axis
 TIMESTEP = 0.025
 N_FRAMES = 200     # number of frames to draw
 GRID_MIN = -1
@@ -27,6 +27,7 @@ ALPHA = 0.0       #dissipation rate
 VISC = 0.0
 VORTEX_RADIUS = 0.5*(GRID_MAX - GRID_MIN)/2.0
 VORTEX_CENTER = np.array([GRID_MIN + D*(int(SIZE_X/2) + 0.5), GRID_MIN + D*(int(SIZE_Y/2)+0.5)  ])
+VORTEX_MAGNITUDE = 5
 #################################################################
 # Initialisation
 #################################################################
@@ -45,8 +46,8 @@ for j in range(SIZE_Y):
         COORDS_Y.append(point_y)
         r = np.linalg.norm( np.array([point_x, point_y]) - VORTEX_CENTER )
         if r < VORTEX_RADIUS:
-            u_init.append(10*point_y)
-            v_init.append(-10*point_x)
+            u_init.append(VORTEX_MAGNITUDE*point_y)
+            v_init.append(-VORTEX_MAGNITUDE*point_x)
             density_init.append(1.0)
         else:
             u_init.append(0)
@@ -70,7 +71,8 @@ COORDS_Y = tf.convert_to_tensor(COORDS_Y, dtype=tf.float32)
 x,y = np.meshgrid(COORDS_X[:SIZE_X], COORDS_Y[::SIZE_X])
 fig, ax = plt.subplots(1, 1)
 ax.set_aspect('equal', adjustable='box')
-Q = ax.quiver(x, y, tf.reshape(u_init, shape=(SIZE_X, SIZE_Y)).numpy(), tf.reshape(v_init, shape=(SIZE_X, SIZE_Y)).numpy(), color='red', scale_units='width')
+vel_x, vel_y = slv.velocityCentered(velocity_field_x,velocity_field_y, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, GRID_MIN, D)
+Q = ax.quiver(x, y, tf.reshape(vel_x, shape=(SIZE_X, SIZE_Y)).numpy(), tf.reshape(vel_y, shape=(SIZE_X, SIZE_Y)).numpy(), color='red', scale_units='width')
 
 ##############################################################
 #               Plot Animation
@@ -81,16 +83,17 @@ DENSITY_NAME = "vortex_density_"+str(SIZE_X)+"x"+str(SIZE_Y)
 DIR_PATH = os.path.join(os.getcwd().rsplit("\\",1)[0], OUTPUT_DIR)
 SAVE_PATH =  os.path.join(DIR_PATH, FOLDER_NAME)
 FPS = 20
-if not os.path.isdir(SAVE_PATH):
-    os.mkdir(SAVE_PATH)
-else:
-    for file in os.listdir(SAVE_PATH):
-        file_path = os.path.join(SAVE_PATH, file)
-        try:
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        except Exception as e:
-            print(f'Error deleting file: {file_path} - {e}')
+if SIZE_X < RESOLUTION_LIMIT:
+    if not os.path.isdir(SAVE_PATH):
+        os.mkdir(SAVE_PATH)
+    else:
+        for file in os.listdir(SAVE_PATH):
+            file_path = os.path.join(SAVE_PATH, file)
+            try:
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f'Error deleting file: {file_path} - {e}')
 if not os.path.isdir(os.path.join(DIR_PATH, DENSITY_NAME)):
     os.mkdir(os.path.join(DIR_PATH, DENSITY_NAME))
 else:
@@ -112,8 +115,9 @@ for t in pbar:
     # Viz update
     viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).numpy()), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(t)))
     if SIZE_X < RESOLUTION_LIMIT:
-        u_viz = tf.reshape(velocity_field_x, shape=(SIZE_X, SIZE_Y)).numpy()
-        v_viz = tf.reshape(velocity_field_y, shape=(SIZE_X, SIZE_Y)).numpy()
+        vel_x, vel_y = slv.velocityCentered(velocity_field_x,velocity_field_y, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, GRID_MIN, D)
+        u_viz = tf.reshape(vel_x, shape=(SIZE_X, SIZE_Y)).numpy()
+        v_viz = tf.reshape(vel_y, shape=(SIZE_X, SIZE_Y)).numpy()
         Q.set_UVC(u_viz,v_viz)
         plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(t)))
 

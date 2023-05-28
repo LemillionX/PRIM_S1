@@ -11,8 +11,8 @@ from tqdm import tqdm
 #               General settings
 ##############################################################
 
-SIZE_X = 55          # number of elements in the x-axis
-SIZE_Y = 55          # number of elements in the y-axis
+SIZE_X = 25          # number of elements in the x-axis
+SIZE_Y = 25          # number of elements in the y-axis
 TIMESTEP = 0.025
 N_FRAMES = 200     # number of frames to draw
 GRID_MIN = -1
@@ -53,6 +53,9 @@ for j in range(SIZE_Y):
             v_init[i+j*SIZE_X] = -VORTEX_MAGNITUDE*point_x
         if r < VORTEX_RADIUS:
             density_init[i+j*SIZE_X] = 1.0
+
+# Enable timeline recording
+tf.profiler.experimental.start('logdir/profiler_outdir')
 
 ## Initialise variables
 laplace_mat =  tf.convert_to_tensor(slv.build_laplacian_matrix(SIZE_X, SIZE_Y, 1/(D*D), -4/(D*D)), dtype=tf.float32)
@@ -120,6 +123,12 @@ for t in pbar:
         v_viz = tf.reshape(vel_y, shape=(SIZE_X, SIZE_Y)).numpy()
         Q.set_UVC(u_viz,v_viz)
         plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(t)))
+
+# Set the step number
+tf.summary.experimental.set_step(1)
+# Stop profiler
+tf.profiler.experimental.stop()
+
 
 if SIZE_X < RESOLUTION_LIMIT:
     viz.frames2gif(os.path.join(DIR_PATH, FOLDER_NAME), os.path.join(DIR_PATH, FOLDER_NAME+".gif"), FPS)

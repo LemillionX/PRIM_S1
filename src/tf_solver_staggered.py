@@ -34,12 +34,12 @@ def addSource(s, value=1.0, indices=None):
 
     Args:
         s: A TensorFlow ``tensor`` representing the density grid
-        value: A ``float`` representing the value to put at ``indices``. Default is set yo ``1.0``
+        value: A ``float`` representing the value to put at ``indices``. Default is set to ``1.0``
         indices: A TensorFlow ``tensor`` of shape (N, 1, 1) where N is the number of cells to update in the grid ``s``. Default is set to ``None``
     '''
     return tf.tensor_scatter_nd_update(s, indices, tf.constant(value, shape=[indices.shape[0]], dtype=tf.float32))
 
-@tf.function
+@tf.function(jit_compile=True)
 def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     '''
     Set the boundaries of the grids ``u`` and ``v`` to the value ``b``
@@ -65,31 +65,7 @@ def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     new_v = tf.tensor_scatter_nd_update(new_v, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
     return new_u, new_v
 
-@tf.function
-def set_scalar_boundary(s, sizeX, sizeY):
-    '''
-    Set the boundaries of the grids ``s`` by putting 0 at the boundaries.
-
-    Args:
-        s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        sizeX: An ``int`` representing the number of horizontal cells
-        sizeY: An ``int`` representing the number of vertical cells
-
-    Returns:
-        new_s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``s``
-    '''
-    new_s = tf.identity(s)
-    mask_down = tf.expand_dims(tf.range(0, sizeX, 1),1)
-    mask_up = tf.expand_dims(tf.range(sizeX*(sizeY-1), sizeX*sizeY, 1), 1)
-    mask_left = tf.expand_dims(tf.range(0, sizeX*sizeY, sizeX),1)
-    mask_right = tf.expand_dims(tf.range(sizeX-1,sizeX*sizeY,sizeX), 1)
-    new_s = tf.tensor_scatter_nd_update(new_s, mask_left, tf.zeros_like(mask_left, dtype=tf.float32))
-    new_s = tf.tensor_scatter_nd_update(new_s, mask_right, tf.zeros_like(mask_right, dtype=tf.float32))
-    new_s = tf.tensor_scatter_nd_update(new_s, mask_up, tf.zeros_like(mask_up, dtype=tf.float32))
-    new_s = tf.tensor_scatter_nd_update(new_s, mask_down, tf.zeros_like(mask_down, dtype=tf.float32))
-    return new_s
-
-@tf.function
+@tf.function(jit_compile=True)
 def indexTo1D(i,j, sizeX):
     '''
     Gives the 1D index of the 2D index ``[i,j]`` for a 1D grid of size ``sizeX*sizeX`` representing a 2D Grid of shape ``(sizeX, sizeX)``
@@ -104,7 +80,7 @@ def indexTo1D(i,j, sizeX):
     '''
     return j*sizeX+i
 
-@tf.function
+@tf.function(jit_compile=True)
 def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     '''
     Applies the boundary function ``boundary_func`` to ``u`` and ``v``.
@@ -126,7 +102,7 @@ def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     else:
         return boundary_func(u,v,sizeX,sizeY,b)
 
-@tf.function
+@tf.function(jit_compile=True)
 def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     '''
     Performs bilinear interpolation on point ``(x,y)`` in the grid ``data``.
@@ -162,21 +138,21 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
 
     return t_i0*t_j0*p00 + t_i0*t_j1*p01 + t_i1*t_j0*p10 + t_i1*t_j1*p11
 
-@tf.function
+@tf.function(jit_compile=True)
 def advectStaggeredU(u,v,sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     v_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset ,d), elems=(coords_x - 0.5*d, coords_y + 0.5*d))
     traced_x_u = tf.clip_by_value(coords_x - 0.5*d- dt*u, offset, offset + (sizeX-0.5)*d - 0.5*d)
     traced_y_u = tf.clip_by_value(coords_y - dt*v_u,  offset + 0.5*d, offset + (sizeY-0.5)*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(traced_x_u + 0.5*d, traced_y_u))
 
-@tf.function
+@tf.function(jit_compile=True)
 def advectStaggeredV(u, v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     u_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y - 0.5*d))
     traced_x_v = tf.clip_by_value(coords_x - dt*u_v, offset + 0.5*d, offset + (sizeX-0.5)*d)
     traced_y_v = tf.clip_by_value(coords_y - 0.5*d - dt*v, offset, offset + (sizeY-0.5)*d - 0.5*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(traced_x_v, traced_y_v + 0.5*d))
 
-@tf.function
+@tf.function(jit_compile=True)
 def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     u_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
     v_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
@@ -184,7 +160,7 @@ def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     traced_y = tf.clip_by_value(coords_y - dt*v_f, offset + 0.5*d, offset + (sizeY-0.5)*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], f, sizeX, sizeY, offset, d), elems=(traced_x, traced_y))
 
-@tf.function
+@tf.function(jit_compile=True)
 def velocityCentered(u,v,sizeX, sizeY, coords_x, coords_y, offset, d):
     vel_x = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
     vel_y = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
@@ -250,8 +226,8 @@ def project(u,v,sizeX,sizeY,mat,h,boundary_func):
     gradP_v = (p - tf.roll(p, shift=sizeY, axis=0))/h
     gradP_u, gradP_v = set_boundary(gradP_u, gradP_v, sizeX, sizeY, boundary_func)
     
-    new_u = _u - gradP_u
-    new_v = _v - gradP_v
+    new_u = u - gradP_u
+    new_v = v - gradP_v
     return new_u, new_v
 
 def dissipate(s,a,dt):
@@ -318,7 +294,6 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     # diffusion step
     if _kDiff > 0:
         _s = diffuse(_s, _sDiff_mat)
-        _s = set_scalar_boundary(_s, _sizeX, _sizeY)
 
     # dissipation step
     if _alpha > 0:

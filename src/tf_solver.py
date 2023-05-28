@@ -291,7 +291,7 @@ def advectCentered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     Returns:
         u1: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the advected ``f``
     '''
-    traced_x = tf.clip_by_value(coords_x - dt*u, offset + 0.5*d, offset + (sizeX-0.5)*d )
+    traced_x = tf.clip_by_value(coords_x - dt*u, offset + 0.5*d, offset + (sizeX-0.5)*d)
     traced_y = tf.clip_by_value(coords_y - dt*v, offset + 0.5*d, offset + (sizeY-0.5)*d)
     u1 = tf.vectorized_map(fn=lambda x: sampleAt(x[0],x[1],f,sizeX,sizeY, offset, d), elems=(traced_x, traced_y))
     return u1

@@ -11,8 +11,8 @@ from tqdm import tqdm
 #               General settings
 ##############################################################
 
-SIZE_X = 20          # number of elements in the x-axis
-SIZE_Y = 20          # number of elements in the y-axis
+SIZE_X = 55          # number of elements in the x-axis
+SIZE_Y = 55          # number of elements in the y-axis
 TIMESTEP = 0.025
 N_FRAMES = 200     # number of frames to draw
 GRID_MIN = -1
@@ -26,8 +26,8 @@ ALPHA = 0.0       #dissipation rate
 ## Velocitity fiels settings
 VISC = 0.0
 VORTEX_RADIUS = 0.5*(GRID_MAX - GRID_MIN)/2.0
-VORTEX_CENTER = np.array([GRID_MIN + D*(int(SIZE_X/2) + 0.5), GRID_MIN + D*(int(SIZE_Y/2)+0.5)  ])
-VORTEX_MAGNITUDE = 5
+VORTEX_CENTER = np.array([0,0])
+VORTEX_MAGNITUDE = 10
 #################################################################
 # Initialisation
 #################################################################
@@ -35,9 +35,9 @@ RESOLUTION_LIMIT = 30
 # Setup grids
 COORDS_X = []   # x-coordinates of position
 COORDS_Y = []   # y-coordinates of position
-u_init = []     # x-coordinates of speed
-v_init = []     # y-coordinates of speed
-density_init = []    # density field
+u_init = np.zeros(SIZE_X*SIZE_Y)     # x-coordinates of speed
+v_init = np.zeros(SIZE_X*SIZE_Y)      # y-coordinates of speed
+density_init = np.zeros(SIZE_X*SIZE_Y)    # density field
 for j in range(SIZE_Y):
     for i in range(SIZE_X):
         point_x = GRID_MIN+(i+0.5)*D
@@ -45,14 +45,14 @@ for j in range(SIZE_Y):
         COORDS_X.append(point_x)
         COORDS_Y.append(point_y)
         r = np.linalg.norm( np.array([point_x, point_y]) - VORTEX_CENTER )
+        r_u = np.linalg.norm( np.array([point_x-0.5*D, point_y]) - VORTEX_CENTER )
+        r_v = np.linalg.norm( np.array([point_x, point_y-0.5*D]) - VORTEX_CENTER )
+        if r_u < VORTEX_RADIUS:
+            u_init[i+j*SIZE_X] = VORTEX_MAGNITUDE*point_y
+        if r_v < VORTEX_RADIUS:
+            v_init[i+j*SIZE_X] = -VORTEX_MAGNITUDE*point_x
         if r < VORTEX_RADIUS:
-            u_init.append(VORTEX_MAGNITUDE*point_y)
-            v_init.append(-VORTEX_MAGNITUDE*point_x)
-            density_init.append(1.0)
-        else:
-            u_init.append(0)
-            v_init.append(0)
-            density_init.append(0.0)
+            density_init[i+j*SIZE_X] = 1.0
 
 ## Initialise variables
 laplace_mat =  tf.convert_to_tensor(slv.build_laplacian_matrix(SIZE_X, SIZE_Y, 1/(D*D), -4/(D*D)), dtype=tf.float32)

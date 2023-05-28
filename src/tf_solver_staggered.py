@@ -114,7 +114,7 @@ def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
         v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
         sizeX: An ``int`` representing the number of horizontal cells
         sizeY: An ``int`` representing the number of vertical cells
-        boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the reflexive boundaries are applied.
+        boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the solid boundaries are applied.
         b: A ``float``  set to ``0`` to ensure compatibility with customized boundary functions.
 
     Returns:
@@ -165,23 +165,23 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
 @tf.function
 def advectStaggeredU(u,v,sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     v_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset ,d), elems=(coords_x - 0.5*d, coords_y + 0.5*d))
-    traced_x_u = tf.clip_by_value(coords_x -0.5*d- dt*u, offset, offset + sizeX*d)
-    traced_y_u = tf.clip_by_value(coords_y - dt*v_u, offset, offset + sizeY*d)
+    traced_x_u = tf.clip_by_value(coords_x - 0.5*d- dt*u, offset, offset + (sizeX-0.5)*d - 0.5*d)
+    traced_y_u = tf.clip_by_value(coords_y - dt*v_u,  offset + 0.5*d, offset + (sizeY-0.5)*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(traced_x_u + 0.5*d, traced_y_u))
 
 @tf.function
 def advectStaggeredV(u, v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     u_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y - 0.5*d))
-    traced_x_v = tf.clip_by_value(coords_x - dt*u_v, offset, offset + sizeX*d)
-    traced_y_v = tf.clip_by_value(coords_y - 0.5*d - dt*v, offset, offset + sizeY*d)
+    traced_x_v = tf.clip_by_value(coords_x - dt*u_v, offset + 0.5*d, offset + (sizeX-0.5)*d)
+    traced_y_v = tf.clip_by_value(coords_y - 0.5*d - dt*v, offset, offset + (sizeY-0.5)*d - 0.5*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(traced_x_v, traced_y_v + 0.5*d))
 
 @tf.function
 def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     u_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
     v_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
-    traced_x = tf.clip_by_value(coords_x - dt*u_f, offset, offset + sizeX*d)
-    traced_y = tf.clip_by_value(coords_y - dt*v_f, offset, offset + sizeY*d)
+    traced_x = tf.clip_by_value(coords_x - dt*u_f, offset + 0.5*d, offset + (sizeX-0.5)*d)
+    traced_y = tf.clip_by_value(coords_y - dt*v_f, offset + 0.5*d, offset + (sizeY-0.5)*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], f, sizeX, sizeY, offset, d), elems=(traced_x, traced_y))
 
 @tf.function
@@ -241,16 +241,14 @@ def solvePressure(u,v, sizeX, sizeY, h, mat):
     div = (dx+dy)/h
     if tf.rank(div) < 2:
         div = tf.expand_dims(div, 1)
-    div = set_scalar_boundary(div, sizeX, sizeY)
     return tf.linalg.solve(mat, div)
 
 def project(u,v,sizeX,sizeY,mat,h,boundary_func):
-    _u, _v = set_boundary(u,v,sizeX, sizeY, boundary_func)
-    p = solvePressure(_u, _v, sizeX, sizeY, h, mat)[...,0]
+    p = solvePressure(u, v, sizeX, sizeY, h, mat)[...,0]
 
     gradP_u = (p - tf.roll(p, shift=1, axis=0))/h
     gradP_v = (p - tf.roll(p, shift=sizeY, axis=0))/h
-    gradP_u, gradP_v = set_solid_boundary(gradP_u, gradP_v, sizeX, sizeY)
+    gradP_u, gradP_v = set_boundary(gradP_u, gradP_v, sizeX, sizeY, boundary_func)
     
     new_u = _u - gradP_u
     new_v = _v - gradP_v

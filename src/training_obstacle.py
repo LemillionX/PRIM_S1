@@ -63,11 +63,13 @@ FLUID_SETTINGS["grid_max"] = 1
 FLUID_SETTINGS["diffusion_coeff"] = 0.0
 FLUID_SETTINGS["dissipation_rate"] = 0.0
 FLUID_SETTINGS["viscosity"] = 0.0
-FLUID_SETTINGS["source"] = {}
-FLUID_SETTINGS["source"]["value"]=1.0
-src_indices = np.where(np.array(density_init)==1.0)[0] 
-FLUID_SETTINGS["source"]["indices"]=src_indices.reshape((src_indices.shape[0],1)) 
-FLUID_SETTINGS["source"]["time"]=20
+
+FLUID_SETTINGS["source"] = None
+# FLUID_SETTINGS["source"] = {}
+# FLUID_SETTINGS["source"]["value"]=1.0
+# src_indices = np.where(np.array(density_init)==1.0)[0] 
+# FLUID_SETTINGS["source"]["indices"]=src_indices.reshape((src_indices.shape[0],1)) 
+# FLUID_SETTINGS["source"]["time"]=30
 
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
 COORDS_X = []   # x-coordinates of position
@@ -88,8 +90,8 @@ for j in range(SIZE):
         COORDS_X.append(point_x)
         COORDS_Y.append(point_y)
 
-u_init = np.random.rand(SIZE * SIZE)
-v_init = np.random.rand(SIZE * SIZE)
+u_init = -np.random.rand(SIZE * SIZE)
+v_init = -np.random.rand(SIZE * SIZE)
 
 
 def build_laplacian_matrix(sizeX,sizeY,a,b):

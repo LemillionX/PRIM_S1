@@ -177,9 +177,9 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
         b: A ``float`` for the value of the diagonal
 
     Returns:
-        mat: A Numpy array of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix
+        TO DO
     '''
-    mat = np.zeros((sizeX*sizeY,sizeX*sizeY))
+    mat = np.zeros((sizeX*sizeY,sizeX*sizeY), dtype=np.float32)
     for it in range(sizeX*sizeY):
         i = it%sizeX
         j = it//sizeX
@@ -195,9 +195,9 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
         if (j<sizeY-1):
             mat[it, it+sizeX] = a
             mat[it,it] += b/4
-    return mat
+    return tf.linalg.lu(mat)
 
-def diffuse(f, mat):
+def diffuse(f, lu, p):
     '''
     Diffuses the scalar field ``f`` using a matrix ``mat``.
 
@@ -209,7 +209,7 @@ def diffuse(f, mat):
     '''
     if tf.rank(f).numpy() < 2:
         f = tf.expand_dims(f, 1)
-    return tf.linalg.solve(mat,f)
+    return tf.linalg.lu_solve(lu, p, f)
 
 def solvePressure(u,v, sizeX, sizeY, h, lu, p):
     dx = tf.roll(u, shift=-1, axis=0) - u
@@ -218,7 +218,6 @@ def solvePressure(u,v, sizeX, sizeY, h, lu, p):
     if tf.rank(div) < 2:
         div = tf.expand_dims(div, 1)
     return tf.linalg.lu_solve(lu, p, div)
-    # return tf.linalg.solve(mat, div)
 
 def project(u,v,sizeX,sizeY, lu, q, h, boundary_func):
     p = solvePressure(u, v, sizeX, sizeY, h, lu, q)[...,0]
@@ -242,7 +241,7 @@ def dissipate(s,a,dt):
     '''
     return s/(1+dt*a)
 
-def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu, _p, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
+def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu, _p, _alpha, _vDiff_lu, _vDiff_p, _visc, _sDiff_mat_lu, _sDiff_mat_p, _kDiff, boundary_func=None, source=None, t=np.inf):
     '''
     Performs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
@@ -279,8 +278,8 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
 
     # diffusion step
     if _visc > 0:
-        _u = diffuse(_u, _vDiff_mat)[..., 0]
-        _v = diffuse(_v, _vDiff_mat)[..., 0]
+        _u = diffuse(_u, _vDiff_lu, _vDiff_p)[..., 0]
+        _v = diffuse(_v, _vDiff_lu, _vDiff_p)[..., 0]
         _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func)
 
     # projection step
@@ -294,7 +293,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
 
     # diffusion step
     if _kDiff > 0:
-        _s = diffuse(_s, _sDiff_mat)
+        _s = diffuse(_s, _sDiff_mat_lu, _sDiff_mat_p)
 
     # dissipation step
     if _alpha > 0:
@@ -537,11 +536,10 @@ if __name__ in ["__main__", "__builtin__"]:
             
             # Gradients
             with tf.GradientTape() as tape:
-                _Sdiffuse_mat = tf.convert_to_tensor(build_laplacian_matrix(_sizeX, _sizeY, -_kDiff/(_d*_d), 1+4*_kDiff/(_d*_d) ), dtype=tf.float32)
-                _Vdiffuse_mat = tf.convert_to_tensor(build_laplacian_matrix(_sizeX, _sizeY, -_visc/(_d*_d), 1+4*_visc/(_d*_d) ), dtype=tf.float32)
-                _laplacian_mat = tf.convert_to_tensor(build_laplacian_matrix(_sizeX, _sizeY,1/(_d*_d),-4/(_d*_d)), dtype=tf.float32)
-                _lu, _p = tf.linalg.lu(_laplacian_mat)
-                new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _lu, _p, _alpha, _Vdiffuse_mat, _visc, _Sdiffuse_mat, _kDiff)
+                _sDiff_lu, _sDiff_p = build_laplacian_matrix(_sizeX, _sizeY, -_kDiff/(_d*_d), 1+4*_kDiff/(_d*_d) )
+                _vDiff_lu, _vDiff_p = build_laplacian_matrix(_sizeX, _sizeY, -_visc/(_d*_d), 1+4*_visc/(_d*_d) )
+                _lu, _p = build_laplacian_matrix(_sizeX, _sizeY,1/(_d*_d),-4/(_d*_d))
+                new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _lu, _p, _alpha,  _vDiff_lu, _vDiff_p, _visc, _sDiff_lu, _sDiff_p, _kDiff)
             print("Executing OK")
             grad_solver = tape.gradient([new_s, new_u, new_v], [_u, _v, _s, _dt])
 

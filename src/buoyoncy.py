@@ -81,11 +81,7 @@ COORDS_Y = tf.convert_to_tensor(COORDS_Y, dtype=tf.float32)
 ##############################################################
 #               Plot initialisation 
 ##############################################################
-x,y = np.meshgrid(COORDS_X[:SIZE_X], COORDS_Y[::SIZE_X])
-fig, ax = plt.subplots(1, 1)
-ax.set_aspect('equal', adjustable='box')
-vel_x, vel_y = slv.velocityCentered(velocity_field_x,velocity_field_y, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, GRID_MIN, D)
-Q = ax.quiver(x, y, tf.reshape(vel_x, shape=(SIZE_X, SIZE_Y)).numpy(), tf.reshape(vel_y, shape=(SIZE_X, SIZE_Y)).numpy(), color='red', scale=10, scale_units='inches')
+fig, ax, Q = viz.init_viz(velocity_field_x,velocity_field_y, COORDS_X, COORDS_Y, SIZE_X, SIZE_Y, GRID_MIN, D)
 
 ##############################################################
 #               Plot Animation

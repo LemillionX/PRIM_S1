@@ -125,11 +125,11 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
 
     ## Plot Animation
     output_dir = "output"
-    v_path, d_path, resolution_limit = viz.init_dir(output_dir, filename, sizeX) 
+    v_path, d_path, resolution_limit = viz.init_dir(output_dir, filename, sizeX, sizeX+1) 
     fps = 20
     fig, ax, Q = viz.init_viz(velocity_field_x,velocity_field_y,density_field, coords_X, coords_Y, sizeX, sizeY, grid_min, h, v_path, d_path, resolution_limit)
 
-    pbar = tqdm(range(1, _nFrames+1), desc = "Simulating....")
+    pbar = tqdm(range(1, 2*_nFrames+1), desc = "Simulating....")
 
     for t in pbar:
         velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h,  laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, _boundary, source, t)

@@ -8,8 +8,8 @@ import os
 FILENAME = ""
 
 # Simulation settings
-MAX_ITER = 50
-LEARNING_RATE = 1
+MAX_ITER = 150
+LEARNING_RATE = 1.5
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -25,7 +25,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "batch1_traj1"
+CONSTRAINT_FILE = "snake_40x40"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)

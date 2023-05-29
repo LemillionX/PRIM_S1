@@ -1,5 +1,5 @@
 import tensorflow as tf
-import tf_solver as slv
+import tf_solver_staggered as slv
 import numpy as np
 import viz as viz
 import matplotlib.pyplot as plt
@@ -60,13 +60,13 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         key_weights = constraint["weights"]
 
     ## Pre-build matrices
-    laplace_mat =  tf.convert_to_tensor(slv.build_laplacian_matrix(sizeX, sizeY, 1/( h*h), -4/( h*h)), dtype=tf.float32)
-    velocity_diff_mat = tf.convert_to_tensor(slv.build_laplacian_matrix(sizeX, sizeY, -visc*timestep/( h*h), 1+4*visc*timestep/( h*h) ), dtype=tf.float32)
-    scalar_diffuse_mat = tf.convert_to_tensor(slv.build_laplacian_matrix(sizeX, sizeY, -k_diff*timestep/( h*h), 1+4*k_diff*timestep/( h*h) ), dtype=tf.float32)
+    laplace_mat_LU, laplace_mat_P = slv.build_laplacian_matrix(sizeX, sizeY, 1/( h*h), -4/( h*h))
+    velocity_diff_LU, velocity_diff_P = slv.build_laplacian_matrix(sizeX, sizeY, -visc*timestep/( h*h), 1+4*visc*timestep/( h*h))
+    scalar_diffuse_LU, scalar_diffuse_P = slv.build_laplacian_matrix(sizeX, sizeY, -k_diff*timestep/( h*h), 1+4*k_diff*timestep/( h*h) )
 
     ## Converting variables to tensors
     target_density = tf.convert_to_tensor(_target, dtype=tf.float32)
-    velocity_field_x, velocity_field_y = slv.set_boundary(tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32), sizeX, sizeY, _boundary)
+    velocity_field_x, velocity_field_y = tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32)
     density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
     trained_vel_x = tf.identity(velocity_field_x)
     trained_vel_y = tf.identity(velocity_field_y)
@@ -79,7 +79,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     with tf.GradientTape() as tape:
         velocity_field_x = tf.Variable(velocity_field_x)
         velocity_field_y = tf.Variable(velocity_field_y)
-        _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
+        _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, keyframes, keyidx, _boundary, source, leave=False)
         loss,  d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
     grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
     print("[step 0] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(l_rate=0, loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad[:2]).numpy()))
@@ -96,7 +96,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         with tf.GradientTape() as tape:
             velocity_field_x = tf.Variable(trained_vel_x)
             velocity_field_y = tf.Variable(trained_vel_y)
-            _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, keyframes, keyidx, _boundary, source, leave=False)
+            _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, keyframes, keyidx, _boundary, source, leave=False)
             loss, d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
         count += 1
         grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
@@ -127,7 +127,8 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     x,y = np.meshgrid(coords_X[:sizeX], coords_Y[::sizeX])
     fig, ax = plt.subplots(1, 1)
     ax.set_aspect('equal', adjustable='box')
-    Q = ax.quiver(x, y, tf.reshape(velocity_field_x, shape=(sizeX, sizeY)).numpy(), tf.reshape(velocity_field_y, shape=(sizeX, sizeY)).numpy(), color='red', scale_units='width')
+    viz_x, viz_y = slv.velocityCentered(velocity_field_x,velocity_field_y, sizeX, sizeY, coords_X, coords_Y, grid_min, h)
+    Q = ax.quiver(x, y, tf.reshape(viz_x, shape=(sizeX, sizeY)).numpy(), tf.reshape(viz_y, shape=(sizeX, sizeY)).numpy(), color='red', scale_units='width')
 
     ## Plot Animation
     output_dir = "output"
@@ -163,11 +164,12 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     viz.draw_density(np.flipud(tf.reshape(density_field, shape=(sizeX, sizeY)).numpy()), os.path.join(dir_path, density_name, '{:04d}.png'.format(0)))
 
     for t in pbar:
-        velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat, alpha, velocity_diff_mat, visc, scalar_diffuse_mat, k_diff, _boundary, source, t)
+        velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h,  laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, _boundary, source, t)
         # Viz update
         viz.draw_density(np.flipud(tf.reshape(density_field, shape=(sizeX, sizeY)).numpy()), os.path.join(dir_path, density_name, '{:04d}.png'.format(t)))
-        u_viz = tf.reshape(velocity_field_x, shape=(sizeX, sizeY)).numpy()
-        v_viz = tf.reshape(velocity_field_y, shape=(sizeX, sizeY)).numpy()
+        viz_x, viz_y = slv.velocityCentered(velocity_field_x,velocity_field_y, sizeX, sizeY, coords_X, coords_Y, grid_min, h)
+        u_viz = tf.reshape(viz_x, shape=(sizeX, sizeY)).numpy()
+        v_viz = tf.reshape(viz_y, shape=(sizeX, sizeY)).numpy()
         Q.set_UVC(u_viz,v_viz)
         plt.savefig(os.path.join(save_path, '{:04d}'.format(t)))
 

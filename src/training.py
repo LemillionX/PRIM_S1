@@ -11,7 +11,7 @@ FILENAME["density"] = "density"
 
 # Simulation settings
 MAX_ITER = 50
-LEARNING_RATE = 1
+LEARNING_RATE = 0.1
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -26,7 +26,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "batch1_traj3"
+CONSTRAINT_FILE = "batch1_traj1"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -37,11 +37,11 @@ density_init = CONSTRAINT["init_density"][:]
 SIZE = int(np.sqrt(len(target_density)))
 
 # Source settings
-FLUID_SETTINGS["source"] = {}
-FLUID_SETTINGS["source"]["value"]=1.0
-src_indices = np.where(np.array(density_init)==1.0)[0] 
-FLUID_SETTINGS["source"]["indices"]=src_indices.reshape((src_indices.shape[0],1)) 
-FLUID_SETTINGS["source"]["time"]=20
+# FLUID_SETTINGS["source"] = {}
+# FLUID_SETTINGS["source"]["value"]=1.0
+# src_indices = np.where(np.array(density_init)==1.0)[0] 
+# FLUID_SETTINGS["source"]["indices"]=src_indices.reshape((src_indices.shape[0],1)) 
+# FLUID_SETTINGS["source"]["time"]=20
 # CONSTRAINT = None
 
 # Calculate some useful physicial quantities
@@ -57,8 +57,9 @@ for j in range(SIZE):
         point_y = FLUID_SETTINGS["grid_min"]+(j+0.5)*D
         COORDS_X.append(point_x)
         COORDS_Y.append(point_y)
-        u_init.append(0.0)
-        v_init.append(0.0)
+
+u_init = np.random.uniform(-1,1,SIZE*SIZE)
+v_init = np.random.uniform(-1,1,SIZE*SIZE)
          
 if len(CONSTRAINT["indices"]) > 0:
     print("Velocity is constrained")

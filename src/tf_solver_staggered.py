@@ -40,6 +40,12 @@ def addSource(s, value=1.0, indices=None):
     return tf.tensor_scatter_nd_update(s, indices, tf.constant(value, shape=[indices.shape[0]], dtype=tf.float32))
 
 @tf.function
+def buoyancyForce(d, sizeX, sizeY, coords_x, coords_y, offset, h, alpha = 1.0, g = tf.constant([0, -9.81], dtype=tf.float32)):
+    f_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], d, sizeX, sizeY, offset, h), elems=(coords_x - 0.5*h, coords_y))
+    f_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], d, sizeX, sizeY, offset, h), elems=(coords_x, coords_y - 0.5*h))
+    return -f_u*alpha*g[0], -f_v*alpha*g[1]
+
+@tf.function
 def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     '''
     Set the boundaries of the grids ``u`` and ``v`` to the value ``b``
@@ -57,12 +63,17 @@ def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     '''
     new_u = tf.identity(u)
     new_v = tf.identity(v)
-    mask = tf.logical_or(tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) % sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) % sizeX, sizeX-1)),
-                     tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) // sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) // sizeX, sizeY-1)))
-    indices = tf.where(mask)
-    indices.set_shape((2*(sizeX + sizeY-2), 1))
-    new_u = tf.tensor_scatter_nd_update(new_u, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
-    new_v = tf.tensor_scatter_nd_update(new_v, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
+
+    mask_u = tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) % sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) % sizeX, sizeX-1))
+    mask_v = tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) // sizeX, sizeY-1),  tf.math.equal(tf.range(sizeX*sizeY) // sizeX, 0))
+
+    indices_u = tf.where(mask_u)
+    indices_v = tf.where(mask_v)
+    indices_u.set_shape((2*sizeX, 1))
+    indices_v.set_shape((2*sizeY, 1))
+    
+    new_u = tf.tensor_scatter_nd_update(new_u, indices_u, tf.constant(b, shape=[indices_u.shape[0]], dtype=tf.float32))
+    new_v = tf.tensor_scatter_nd_update(new_v, indices_v, tf.constant(b, shape=[indices_v.shape[0]], dtype=tf.float32))
     return new_u, new_v
 
 @tf.function
@@ -80,8 +91,9 @@ def indexTo1D(i,j, sizeX):
     '''
     return j*sizeX+i
 
+
 @tf.function
-def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
+def set_boundary(u,v,sizeX,sizeY,boundary_func=None):
     '''
     Applies the boundary function ``boundary_func`` to ``u`` and ``v``.
     
@@ -97,10 +109,11 @@ def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
         new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``u``
         new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the updated version of ``v``
     '''
-    if boundary_func is None:
-        return set_solid_boundary(u,v,sizeX,sizeY,b)
-    else:
-        return boundary_func(u,v,sizeX,sizeY,b)
+    if boundary_func is None or boundary_func == "dirichlet":
+        return u,v
+    if boundary_func == "neumann":
+        return set_solid_boundary(u,v,sizeX,sizeY,0)    
+    return u,v
 
 @tf.function
 def sampleAt(x,y, data, sizeX, sizeY, offset, d):
@@ -166,7 +179,7 @@ def velocityCentered(u,v,sizeX, sizeY, coords_x, coords_y, offset, d):
     vel_y = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
     return vel_x, vel_y
 
-def build_laplacian_matrix(sizeX,sizeY,a,b):
+def build_laplacian_matrix(sizeX,sizeY,a,b, boundary_func="dirichlet"):
     '''
     Build a Laplacian Matrix where the diagonal is full of ``b``, and adjacent cells are equals to ``a``. Can take a bit long to execute if the grid is large.
     
@@ -177,24 +190,36 @@ def build_laplacian_matrix(sizeX,sizeY,a,b):
         b: A ``float`` for the value of the diagonal
 
     Returns:
-        TO DO
+        The LU decomposition of the Laplacian Matrix, so that the linear solver is fast
     '''
+    print("Building laplacian matrix and its LU factorisation, can take a while...")
+
+    # Identity Matrix
+    if a == 0 and b == 1:
+        return tf.linalg.lu(tf.eye(sizeX*sizeY,dtype=tf.float32))
+    
     mat = np.zeros((sizeX*sizeY,sizeX*sizeY), dtype=np.float32)
     for it in range(sizeX*sizeY):
         i = it%sizeX
         j = it//sizeX
+        if boundary_func == "dirichlet" or boundary_func is None:
+            mat[it,it] = b
         if (i>0):
             mat[it,it-1] = a
-            mat[it,it] += b/4
+            if boundary_func == "neumann":
+                mat[it,it] += b/4
         if (i<sizeX-1):
             mat[it, it+1] = a
-            mat[it, it] += b/4
+            if boundary_func == "neumann":
+                mat[it, it] += b/4
         if (j>0):
             mat[it,it-sizeX] = a
-            mat[it,it] += b/4
+            if boundary_func == "neumann":
+                mat[it,it] += b/4
         if (j<sizeY-1):
             mat[it, it+sizeX] = a
-            mat[it,it] += b/4
+            if boundary_func == "neumann":
+                mat[it,it] += b/4
     return tf.linalg.lu(mat)
 
 def diffuse(f, lu, p):
@@ -220,14 +245,15 @@ def solvePressure(u,v, sizeX, sizeY, h, lu, p):
     return tf.linalg.lu_solve(lu, p, div)
 
 def project(u,v,sizeX,sizeY, lu, q, h, boundary_func):
-    p = solvePressure(u, v, sizeX, sizeY, h, lu, q)[...,0]
+    _u, _v = set_boundary(u,v,sizeX,sizeY, boundary_func)
+    p = solvePressure(_u, _v, sizeX, sizeY, h, lu, q)[...,0]
 
     gradP_u = (p - tf.roll(p, shift=1, axis=0))/h
     gradP_v = (p - tf.roll(p, shift=sizeY, axis=0))/h
     gradP_u, gradP_v = set_boundary(gradP_u, gradP_v, sizeX, sizeY, boundary_func)
     
-    new_u = u - gradP_u
-    new_v = v - gradP_v
+    new_u = _u - gradP_u
+    new_v = _v - gradP_v
     return new_u, new_v
 
 def dissipate(s,a,dt):
@@ -241,7 +267,7 @@ def dissipate(s,a,dt):
     '''
     return s/(1+dt*a)
 
-def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu, _p, _alpha, _vDiff_lu, _vDiff_p, _visc, _sDiff_mat_lu, _sDiff_mat_p, _kDiff, boundary_func=None, source=None, t=np.inf):
+def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu, _p, _alpha, _vDiff_lu, _vDiff_p, _visc, _sDiff_mat_lu, _sDiff_mat_p, _kDiff, boundary_func=None, source=None, t=np.inf, f_u=None, f_v=None):
     '''
     Performs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
@@ -270,6 +296,12 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
         t: An ``int`` representing the current frame. Default is set to ``np.inf``, meaning we don't need to know the current frame number
     '''
     ## Vstep
+    # add force step
+    if f_u is not None:
+        _u += _dt*f_u
+    if f_v is not None:
+        _v += _dt*f_v
+
     # advection step
     new_u = advectStaggeredU(_u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
     new_v = advectStaggeredV(_u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)
@@ -280,7 +312,6 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
     if _visc > 0:
         _u = diffuse(_u, _vDiff_lu, _vDiff_p)[..., 0]
         _v = diffuse(_v, _vDiff_lu, _vDiff_p)[..., 0]
-        _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func)
 
     # projection step
     _u, _v = project(_u, _v, _sizeX, _sizeY, _lu, _p, _h, boundary_func)
@@ -303,7 +334,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
         _s = addSource(_s, source["value"], source["indices"])
     return _u, _v, _s
 
-def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, leave=True):
+def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu, _p, _alpha, _vDiff_lu, _vDiff_p, _visc, _sDiff_mat_lu, _sDiff_mat_p, _kDiff, boundary_func=None, source=None, leave=True):
     '''
     Performs a fluid simulation of the velocity field ``(_u,_v)`` and the density field ``_s`` over ``n_iter`` frames
 
@@ -338,13 +369,13 @@ def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offse
         new_s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density field at the end of the simulation
     '''
     for t in tqdm(range(1, n_iter+1), desc = "Simulating....", leave=leave):
-        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff,boundary_func, source, t)
+        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h,  _lu, _p, _alpha, _vDiff_lu, _vDiff_p, _visc, _sDiff_mat_lu, _sDiff_mat_p, _kDiff,boundary_func, source, t)
         _u = new_u
         _v = new_v
         _s = new_s
     return new_u, new_v, new_s
 
-def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, keyframes=[], keyidx=[], boundary_func=None, source=None, leave=True):
+def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h,  _lu, _p, _alpha, _vDiff_lu, _vDiff_p, _visc, _sDiff_mat_lu, _sDiff_mat_p, _kDiff, keyframes=[], keyidx=[], boundary_func=None, source=None, leave=True):
     '''
     Performs a fluid simulation of the velocity field ``(_u,_v)`` and the density field ``_s`` over ``n_iter`` frames.
     This version stores intermediates states of some cells ``keyidx`` of the grid at ``keyframes``
@@ -386,7 +417,7 @@ def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, 
     _midVel = []
     count = -1
     for t in tqdm(range(1, n_iter+1), desc = "Simulating....", leave=leave):
-        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff,boundary_func, source, t)
+        new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h,  _lu, _p, _alpha, _vDiff_lu, _vDiff_p, _visc, _sDiff_mat_lu, _sDiff_mat_p, _kDiff,boundary_func, source, t)
         _u = new_u
         _v = new_v
         _s = new_s
@@ -539,7 +570,8 @@ if __name__ in ["__main__", "__builtin__"]:
                 _sDiff_lu, _sDiff_p = build_laplacian_matrix(_sizeX, _sizeY, -_kDiff/(_d*_d), 1+4*_kDiff/(_d*_d) )
                 _vDiff_lu, _vDiff_p = build_laplacian_matrix(_sizeX, _sizeY, -_visc/(_d*_d), 1+4*_visc/(_d*_d) )
                 _lu, _p = build_laplacian_matrix(_sizeX, _sizeY,1/(_d*_d),-4/(_d*_d))
-                new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _lu, _p, _alpha,  _vDiff_lu, _vDiff_p, _visc, _sDiff_lu, _sDiff_p, _kDiff)
+                # new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _lu, _p, _alpha,  _vDiff_lu, _vDiff_p, _visc, _sDiff_lu, _sDiff_p, _kDiff)
+                new_u, new_v, new_s = simulate(10, _u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _lu, _p, _alpha,  _vDiff_lu, _vDiff_p, _visc, _sDiff_lu, _sDiff_p, _kDiff)
             print("Executing OK")
             grad_solver = tape.gradient([new_s, new_u, new_v], [_u, _v, _s, _dt])
 

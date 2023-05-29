@@ -11,8 +11,8 @@ from tqdm import tqdm
 #               General settings
 ##############################################################
 
-SIZE_X = 25          # number of elements in the x-axis
-SIZE_Y = 25          # number of elements in the y-axis
+SIZE_X = 64          # number of elements in the x-axis
+SIZE_Y = 64          # number of elements in the y-axis
 TIMESTEP = 0.025
 N_FRAMES = 200     # number of frames to draw
 GRID_MIN = -1

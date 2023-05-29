@@ -7,6 +7,7 @@ from PIL import Image
 from scipy.special import erf
 import matplotlib.cm as cm
 from termcolor import colored
+import time
 
 
 def indexTo1D(i,j, sizeX):
@@ -38,50 +39,63 @@ def tensorToGrid(u, sizeX, sizeY):
     return grid
 
 def tf_build_laplacian_matrix(sizeX, sizeY, a, b):
-    mat = tf.zeros((sizeX*sizeY, sizeX*sizeY))
-    indices = tf.range(sizeX*sizeY, dtype=tf.int32)
+    diagonals = [b * tf.ones(sizeX * sizeY, dtype=tf.float32)]
+    offsets = [0]
 
-    i = indices % sizeX
-    j = indices // sizeX
+    if sizeX > 1:
+        diagonals.append(a * tf.ones(sizeX * sizeY - 1, dtype=tf.float32))
+        offsets.append(1)
+        diagonals.append(a * tf.ones(sizeX * sizeY - 1, dtype=tf.float32))
+        offsets.append(-1)
 
-    mat = tf.linalg.set_diag(mat, tf.fill((sizeX*sizeY,), b))
-    # print("mat = ", mat)
+    if sizeY > 1:
+        diagonals.append(a * tf.ones(sizeX * (sizeY - 1), dtype=tf.float32))
+        offsets.append(sizeX)
+        diagonals.append(a * tf.ones(sizeX * (sizeY - 1), dtype=tf.float32))
+        offsets.append(-sizeX)
 
-    if a != 0:
-        mask_left = tf.math.greater(i, 1)
-        print("mask_left = ",  mask_left)
-        left_idx = tf.boolean_mask(indices, mask_left)
-        mat = tf.tensor_scatter_nd_update(mat, tf.expand_dims(left_idx - 1, axis=1), tf.reshape(tf.fill(tf.shape(left_idx), a), (-1, 1)))
+    laplacian_matrix = tf.sparse.SparseTensor(indices=tf.range(sizeX * sizeY, dtype=tf.int64),
+                                              values=tf.concat(diagonals, axis=0),
+                                              dense_shape=(sizeX * sizeY, sizeX * sizeY))
+    laplacian_matrix = tf.sparse.add(laplacian_matrix, tf.sparse.eye(sizeX * sizeY, sizeX * sizeY, dtype=tf.float32))
+    laplacian_matrix = tf.sparse.reorder(laplacian_matrix)
 
-        # mask_right = tf.math.less(i, sizeX - 1)
-        # right_idx = tf.boolean_mask(indices, mask_right)
-        # mat = tf.tensor_scatter_nd_update(mat, tf.expand_dims(right_idx + 1, axis=1), tf.fill(tf.shape(right_idx), a))
-
-        # mask_top = tf.math.greater(j, 1)
-        # top_idx = tf.boolean_mask(indices, mask_top)
-        # mat = tf.tensor_scatter_nd_update(mat, tf.expand_dims(top_idx - sizeX, axis=1), tf.fill(tf.shape(top_idx), a))
-
-        # mask_bottom = tf.math.less(j, sizeY - 1)
-        # bottom_idx = tf.boolean_mask(indices, mask_bottom)
-        # mat = tf.tensor_scatter_nd_update(mat, tf.expand_dims(bottom_idx + sizeX, axis=1), tf.fill(tf.shape(bottom_idx), a))
-
-    return mat
+    return tf.linalg.lu(laplacian_matrix)
 
 def build_laplacian_matrix(sizeX,sizeY,a,b):
-    mat = np.zeros((sizeX*sizeY,sizeX*sizeY))
+    '''
+    Build a Laplacian Matrix where the diagonal is full of ``b``, and adjacent cells are equals to ``a``. Can take a bit long to execute if the grid is large.
+    
+    Args:
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        a: A ``float`` for the value of the adjacent cells
+        b: A ``float`` for the value of the diagonal
+
+    Returns:
+        The LU decomposition of the Laplacian Matrix, so that the linear solver is fast
+    '''
+    mat = np.zeros((sizeX*sizeY,sizeX*sizeY), dtype=np.float32)
     for it in range(sizeX*sizeY):
         i = it%sizeX
         j = it//sizeX
-        mat[it,it] = b
-        if (i>1):
+        if (i>0):
             mat[it,it-1] = a
+            mat[it,it] += b/4
         if (i<sizeX-1):
             mat[it, it+1] = a
-        if (j>1):
+            mat[it, it] += b/4
+        if (j>0):
             mat[it,it-sizeX] = a
+            mat[it,it] += b/4
         if (j<sizeY-1):
-            mat[it, it+sizeX] = a       
-    return mat
+            mat[it, it+sizeX] = a
+            mat[it,it] += b/4
+    sparse_mat = tf.sparse.from_dense(mat)
+    tf.sparse.to_dense
+    print(sparse_mat)
+    tf.linalg.cholesky(sparse_mat)
+    return tf.linalg.lu(sparse_mat)
 
 def compute_divergence1(u, v, sizeX, sizeY, h):
     div = []
@@ -190,10 +204,27 @@ if len(sys.argv) > 1:
         print(tensorToGrid(mask, size, size))  # [1 4 7 10]
 
     if sys.argv[1] == "matrix":
-        mat = build_laplacian_matrix(size, size, 1.0, -4.0)
-        print(mat)
-        tf_mat = tf_build_laplacian_matrix(size, size, 1.0, -4.0)
-        print(tf_mat)
+        size = 25
+        # Generate indices, values, and dense_shape for the sparse tensor
+        indices = [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4]]  # Indices of non-zero elements
+        values = [1, 2, 3, 4, 5]  # Values of non-zero elements
+        dense_shape = [size*size, size*size]  # Shape of the dense tensor
+        
+        print("Create Sparse Matrix")
+        start_time = time.time()
+        sparse_tensor = tf.sparse.SparseTensor(indices, values, dense_shape)
+        end_time = time.time()
+        print("Execution time: {:.4f} seconds".format(end_time-start_time))
+
+
+        a = tf.linalg.lu(sparse_tensor)
+
+        # print("Building Laplacian Matrix...")
+        # mat = build_laplacian_matrix(25, 25, 1.0, -4.0)
+        # print(np.shape(mat[0]))
+        # print(mat[0])
+        # tf_mat = tf_build_laplacian_matrix(size, size, 1.0, -4.0)
+        # print(tf_mat[0])
 
     if sys.argv[1] == "div":
         x = tf.constant([[1, 5, 9, 13],

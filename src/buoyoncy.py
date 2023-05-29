@@ -27,9 +27,6 @@ ALPHA = 0.0       #dissipation rate
 ## Velocitity fiels settings
 VISC = 0.0
 
-#################################################################
-# Initialisation
-#################################################################
 RESOLUTION_LIMIT = 30
 
 ####################################################################
@@ -79,58 +76,26 @@ COORDS_X = tf.convert_to_tensor(COORDS_X, dtype=tf.float32)
 COORDS_Y = tf.convert_to_tensor(COORDS_Y, dtype=tf.float32)
 
 ##############################################################
-#               Plot initialisation 
+#               Plot Animation 
 ##############################################################
-fig, ax, Q = viz.init_viz(velocity_field_x,velocity_field_y, COORDS_X, COORDS_Y, SIZE_X, SIZE_Y, GRID_MIN, D)
-
-##############################################################
-#               Plot Animation
-#############################################################
-OUTPUT_DIR = "output"
-FOLDER_NAME = "buyoncy_velocity"
-DENSITY_NAME = "buyoncy_density"
-DIR_PATH = os.path.join(os.getcwd().rsplit("\\",1)[0], OUTPUT_DIR)
-SAVE_PATH =  os.path.join(DIR_PATH, FOLDER_NAME)
 FPS = 20
-if SIZE_X < RESOLUTION_LIMIT:
-    if not os.path.isdir(SAVE_PATH):
-        os.mkdir(SAVE_PATH)
-    else:
-        for file in os.listdir(SAVE_PATH):
-            file_path = os.path.join(SAVE_PATH, file)
-            try:
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                print(f'Error deleting file: {file_path} - {e}')
-if not os.path.isdir(os.path.join(DIR_PATH, DENSITY_NAME)):
-    os.mkdir(os.path.join(DIR_PATH, DENSITY_NAME))
-else:
-    for file in os.listdir(os.path.join(DIR_PATH, DENSITY_NAME)):
-        file_path = os.path.join(os.path.join(DIR_PATH, DENSITY_NAME), file)
-        try:
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        except Exception as e:
-            print(f'Error deleting file: {file_path} - {e}')
+OUTPUT_DIR = "output"
+FILE_NAME = "buoyancy"+str(SIZE_X)+"x"+str(SIZE_Y)
+V_PATH, D_PATH, RESOLUTION_LIMIT = viz.init_dir(OUTPUT_DIR, FILE_NAME, SIZE_X) 
 
-print(SAVE_PATH)
+fig, ax, Q = viz.init_viz(velocity_field_x,velocity_field_y,density_field, COORDS_X, COORDS_Y, SIZE_X, SIZE_Y, GRID_MIN, D, V_PATH, D_PATH, RESOLUTION_LIMIT)
+
 pbar = tqdm(range(1, N_FRAMES+1), desc = "Simulating....")
-viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).numpy()), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(0)))
-if SIZE_X < RESOLUTION_LIMIT:
-    plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(0)))
 for t in pbar:
     f_u, f_v = slv.buoyancyForce(density_field, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, GRID_MIN, D)
     velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, lu, p, ALPHA, velocity_diff_lu, velocity_diff_p, VISC, scalar_diffuse_lu, scalar_diffuse_p, K_DIFF, boundary_func=BOUNDARY, source=SOURCE, t=t, f_u=f_u, f_v=f_v)
     # Viz update
-    viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).numpy()), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(t)))
+    viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).numpy()), os.path.join(D_PATH, '{:04d}.png'.format(t)))
     if SIZE_X < RESOLUTION_LIMIT:
-        vel_x, vel_y = slv.velocityCentered(velocity_field_x,velocity_field_y, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, GRID_MIN, D)
-        u_viz = tf.reshape(vel_x, shape=(SIZE_X, SIZE_Y)).numpy()
-        v_viz = tf.reshape(vel_y, shape=(SIZE_X, SIZE_Y)).numpy()
+        u_viz, v_viz = viz.draw_velocity(velocity_field_x,velocity_field_y, SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, GRID_MIN, D)
         Q.set_UVC(u_viz,v_viz)
-        plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(t)))
+        plt.savefig(os.path.join(V_PATH, '{:04d}'.format(t)))
 
 if SIZE_X < RESOLUTION_LIMIT:
-    viz.frames2gif(os.path.join(DIR_PATH, FOLDER_NAME), os.path.join(DIR_PATH, FOLDER_NAME+".gif"), FPS)
-viz.frames2gif(os.path.join(DIR_PATH, DENSITY_NAME), os.path.join(DIR_PATH, DENSITY_NAME+".gif"), FPS)
+    viz.frames2gif(V_PATH, V_PATH+".gif", FPS)
+viz.frames2gif(D_PATH, D_PATH+".gif", FPS)

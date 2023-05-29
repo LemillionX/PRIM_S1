@@ -57,7 +57,7 @@ def init_viz(u,v,d, coords_x, coords_y, sizeX, sizeY, grid_min, grid_step, v_pat
 
 def init_dir(output_dir, name, size, resolution_limit=30):
     velocity_name = name+"_velocity"
-    density_name = name+"vortex_density"
+    density_name = name+"_density"
     dir_path = os.path.join(os.getcwd().rsplit("\\",1)[0], output_dir)
     velocity_path = os.path.join(dir_path, velocity_name)
     density_path = os.path.join(dir_path, density_name)

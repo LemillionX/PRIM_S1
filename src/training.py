@@ -5,13 +5,11 @@ import json
 import os
 
 # File settings
-FILENAME = {}
-FILENAME["velocity"] = "velocity"
-FILENAME["density"] = "density"
+FILENAME = ""
 
 # Simulation settings
 MAX_ITER = 50
-LEARNING_RATE = 0.1
+LEARNING_RATE = 1
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
 FLUID_SETTINGS = {}
@@ -21,6 +19,7 @@ FLUID_SETTINGS["grid_max"] = 1
 FLUID_SETTINGS["diffusion_coeff"] = 0.0
 FLUID_SETTINGS["dissipation_rate"] = 0.0
 FLUID_SETTINGS["viscosity"] = 0.0
+FLUID_SETTINGS["boundary"] = "neumann"
 FLUID_SETTINGS["source"] = None
 
 
@@ -48,8 +47,6 @@ SIZE = int(np.sqrt(len(target_density)))
 D = (FLUID_SETTINGS["grid_max"] -FLUID_SETTINGS["grid_min"])/SIZE
 COORDS_X = []   # x-coordinates of position
 COORDS_Y = []   # y-coordinates of position
-u_init = []     # x-coordinates of speed
-v_init = []     # y-coordinates of speed
 
 for j in range(SIZE):
     for i in range(SIZE):
@@ -79,10 +76,8 @@ else:
     print("Velocity is NOT constrained")
     CONSTRAINT = None
 
-BOUNDARY_FUNC = None
-
 dt = FLUID_SETTINGS["timestep"]
-trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, BOUNDARY_FUNC, FILENAME, CONSTRAINT, LEARNING_RATE, debug=False)
+trained_vel_x, trained_vel_y =  train.train(MAX_ITER, density_init, target_density, N_FRAMES, u_init, v_init, FLUID_SETTINGS, COORDS_X, COORDS_Y, FILENAME, CONSTRAINT, LEARNING_RATE, debug=False)
 
 
 with open("../output/config.json", 'w') as file:
@@ -98,6 +93,7 @@ with open("../output/config.json", 'w') as file:
                "DIFFUSION_COEFF": FLUID_SETTINGS["diffusion_coeff"],
                "DISSIPATION_RATE": FLUID_SETTINGS["dissipation_rate"],
                "VISCOSITY": FLUID_SETTINGS["viscosity"],
+               "BOUNDARY": FLUID_SETTINGS["boundary"],
                "SOURCE": FLUID_SETTINGS["source"],
                "trained_u": trained_vel_x.numpy().tolist(),
                "trained_v": trained_vel_y.numpy().tolist()

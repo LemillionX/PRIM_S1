@@ -36,7 +36,7 @@ def init_vortices(n, centers, radius, w, coords, size):
         v += v_tmp
     return u,v
 
-def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, _boundary, filename, constraint=None, learning_rate=1.1, debug=False):
+def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, filename, constraint=None, learning_rate=1.1, debug=False):
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
     sizeY = int(np.sqrt(len(_target)))           # number of elements in the y-axis
     assert (sizeX == sizeY), "Dimensions on axis are different !"
@@ -48,6 +48,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     k_diff = _fluidSettings["diffusion_coeff"]
     alpha = _fluidSettings["dissipation_rate"]
     visc = _fluidSettings["viscosity"]
+    _boundary = _fluidSettings["boundary"]
     source = _fluidSettings["source"]
     keyframes = []
     keyidx = []
@@ -60,7 +61,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         key_weights = constraint["weights"]
 
     ## Pre-build matrices
-    laplace_mat_LU, laplace_mat_P = slv.build_laplacian_matrix(sizeX, sizeY, 1/( h*h), -4/( h*h))
+    laplace_mat_LU, laplace_mat_P = slv.build_laplacian_matrix(sizeX, sizeY, 1/( h*h), -4/( h*h), _boundary)
     velocity_diff_LU, velocity_diff_P = slv.build_laplacian_matrix(sizeX, sizeY, -visc*timestep/( h*h), 1+4*visc*timestep/( h*h))
     scalar_diffuse_LU, scalar_diffuse_P = slv.build_laplacian_matrix(sizeX, sizeY, -k_diff*timestep/( h*h), 1+4*k_diff*timestep/( h*h) )
 
@@ -68,8 +69,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     target_density = tf.convert_to_tensor(_target, dtype=tf.float32)
     velocity_field_x, velocity_field_y = tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32)
     density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
-    trained_vel_x = tf.identity(velocity_field_x)
-    trained_vel_y = tf.identity(velocity_field_y)
+    trained_vel_x, trained_vel_y =  slv.project(velocity_field_x, velocity_field_y, sizeX, sizeY, laplace_mat_LU, laplace_mat_P, h, _boundary) 
     dt = tf.convert_to_tensor(timestep, dtype=tf.float32)
     coords_X = tf.convert_to_tensor(_coordsX, dtype=tf.float32)
     coords_Y = tf.convert_to_tensor(_coordsY, dtype=tf.float32)
@@ -123,58 +123,24 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     velocity_field_x = trained_vel_x
     velocity_field_y = trained_vel_y
 
-    ## Plot initialisation 
-    x,y = np.meshgrid(coords_X[:sizeX], coords_Y[::sizeX])
-    fig, ax = plt.subplots(1, 1)
-    ax.set_aspect('equal', adjustable='box')
-    viz_x, viz_y = slv.velocityCentered(velocity_field_x,velocity_field_y, sizeX, sizeY, coords_X, coords_Y, grid_min, h)
-    Q = ax.quiver(x, y, tf.reshape(viz_x, shape=(sizeX, sizeY)).numpy(), tf.reshape(viz_y, shape=(sizeX, sizeY)).numpy(), color='red', scale_units='width')
-
     ## Plot Animation
     output_dir = "output"
-    velocity_name = filename["velocity"]
-    density_name = filename["density"]
-    dir_path = os.path.join(os.getcwd().rsplit("\\",1)[0], output_dir)
-    save_path =  os.path.join(dir_path, velocity_name)
+    v_path, d_path, resolution_limit = viz.init_dir(output_dir, filename, sizeX) 
     fps = 20
-    if not os.path.isdir(save_path):
-        os.mkdir(save_path)
-    else:
-        for file in os.listdir(save_path):
-            file_path = os.path.join(save_path, file)
-            try:
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                print(f'Error deleting file: {file_path} - {e}')
-    if not os.path.isdir(os.path.join(dir_path, density_name)):
-        os.mkdir(os.path.join(dir_path, density_name))
-    else:
-        for file in os.listdir(os.path.join(dir_path, density_name)):
-            file_path = os.path.join(os.path.join(dir_path, density_name), file)
-            try:
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-            except Exception as e:
-                print(f'Error deleting file: {file_path} - {e}')
+    fig, ax, Q = viz.init_viz(velocity_field_x,velocity_field_y,density_field, coords_X, coords_Y, sizeX, sizeY, grid_min, h, v_path, d_path, resolution_limit)
 
-    print("Images will be saved here:", save_path)
-    pbar = tqdm(range(1, _nFrames*2+1), desc = "Simulating....")
-    plt.savefig(os.path.join(save_path, '{:04d}'.format(0)))
-    viz.draw_density(np.flipud(tf.reshape(density_field, shape=(sizeX, sizeY)).numpy()), os.path.join(dir_path, density_name, '{:04d}.png'.format(0)))
+    pbar = tqdm(range(1, _nFrames+1), desc = "Simulating....")
 
     for t in pbar:
         velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h,  laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, _boundary, source, t)
         # Viz update
-        viz.draw_density(np.flipud(tf.reshape(density_field, shape=(sizeX, sizeY)).numpy()), os.path.join(dir_path, density_name, '{:04d}.png'.format(t)))
-        viz_x, viz_y = slv.velocityCentered(velocity_field_x,velocity_field_y, sizeX, sizeY, coords_X, coords_Y, grid_min, h)
-        u_viz = tf.reshape(viz_x, shape=(sizeX, sizeY)).numpy()
-        v_viz = tf.reshape(viz_y, shape=(sizeX, sizeY)).numpy()
+        viz.draw_density(np.flipud(tf.reshape(density_field, shape=(sizeX, sizeY)).numpy()), os.path.join(d_path, '{:04d}.png'.format(t)))
+        u_viz, v_viz = viz.draw_velocity(velocity_field_x,velocity_field_y, sizeX, sizeY, coords_X, coords_Y, grid_min, h)
         Q.set_UVC(u_viz,v_viz)
-        plt.savefig(os.path.join(save_path, '{:04d}'.format(t)))
+        plt.savefig(os.path.join(v_path, '{:04d}'.format(t)))
 
-    viz.frames2gif(os.path.join(dir_path, velocity_name), os.path.join(dir_path, velocity_name+".gif"), fps)
-    viz.frames2gif(os.path.join(dir_path, density_name), os.path.join(dir_path, density_name+".gif"), fps)
+    viz.frames2gif(v_path, v_path+".gif", fps)
+    viz.frames2gif(d_path, d_path+".gif", fps)
     return trained_vel_x, trained_vel_y
 
 

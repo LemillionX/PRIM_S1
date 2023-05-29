@@ -39,7 +39,7 @@ def addSource(s, value=1.0, indices=None):
     '''
     return tf.tensor_scatter_nd_update(s, indices, tf.constant(value, shape=[indices.shape[0]], dtype=tf.float32))
 
-@tf.function(jit_compile=True)
+@tf.function
 def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     '''
     Set the boundaries of the grids ``u`` and ``v`` to the value ``b``
@@ -65,7 +65,7 @@ def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     new_v = tf.tensor_scatter_nd_update(new_v, indices, tf.constant(b, shape=[indices.shape[0]], dtype=tf.float32))
     return new_u, new_v
 
-@tf.function(jit_compile=True)
+@tf.function
 def indexTo1D(i,j, sizeX):
     '''
     Gives the 1D index of the 2D index ``[i,j]`` for a 1D grid of size ``sizeX*sizeX`` representing a 2D Grid of shape ``(sizeX, sizeX)``
@@ -80,7 +80,7 @@ def indexTo1D(i,j, sizeX):
     '''
     return j*sizeX+i
 
-@tf.function(jit_compile=True)
+@tf.function
 def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     '''
     Applies the boundary function ``boundary_func`` to ``u`` and ``v``.
@@ -102,7 +102,7 @@ def set_boundary(u,v,sizeX,sizeY,boundary_func=None,b=0):
     else:
         return boundary_func(u,v,sizeX,sizeY,b)
 
-@tf.function(jit_compile=True)
+@tf.function
 def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     '''
     Performs bilinear interpolation on point ``(x,y)`` in the grid ``data``.
@@ -138,21 +138,21 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
 
     return t_i0*t_j0*p00 + t_i0*t_j1*p01 + t_i1*t_j0*p10 + t_i1*t_j1*p11
 
-@tf.function(jit_compile=True)
+@tf.function
 def advectStaggeredU(u,v,sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     v_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset ,d), elems=(coords_x - 0.5*d, coords_y + 0.5*d))
     traced_x_u = tf.clip_by_value(coords_x - 0.5*d- dt*u, offset, offset + (sizeX-0.5)*d - 0.5*d)
     traced_y_u = tf.clip_by_value(coords_y - dt*v_u,  offset + 0.5*d, offset + (sizeY-0.5)*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(traced_x_u + 0.5*d, traced_y_u))
 
-@tf.function(jit_compile=True)
+@tf.function
 def advectStaggeredV(u, v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     u_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y - 0.5*d))
     traced_x_v = tf.clip_by_value(coords_x - dt*u_v, offset + 0.5*d, offset + (sizeX-0.5)*d)
     traced_y_v = tf.clip_by_value(coords_y - 0.5*d - dt*v, offset, offset + (sizeY-0.5)*d - 0.5*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(traced_x_v, traced_y_v + 0.5*d))
 
-@tf.function(jit_compile=True)
+@tf.function
 def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     u_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
     v_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
@@ -160,7 +160,7 @@ def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
     traced_y = tf.clip_by_value(coords_y - dt*v_f, offset + 0.5*d, offset + (sizeY-0.5)*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], f, sizeX, sizeY, offset, d), elems=(traced_x, traced_y))
 
-@tf.function(jit_compile=True)
+@tf.function
 def velocityCentered(u,v,sizeX, sizeY, coords_x, coords_y, offset, d):
     vel_x = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
     vel_y = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
@@ -211,16 +211,17 @@ def diffuse(f, mat):
         f = tf.expand_dims(f, 1)
     return tf.linalg.solve(mat,f)
 
-def solvePressure(u,v, sizeX, sizeY, h, mat):
+def solvePressure(u,v, sizeX, sizeY, h, lu, p):
     dx = tf.roll(u, shift=-1, axis=0) - u
     dy = tf.roll(v, shift=-sizeX, axis=0) - v
     div = (dx+dy)/h
     if tf.rank(div) < 2:
         div = tf.expand_dims(div, 1)
-    return tf.linalg.solve(mat, div)
+    return tf.linalg.lu_solve(lu, p, div)
+    # return tf.linalg.solve(mat, div)
 
-def project(u,v,sizeX,sizeY,mat,h,boundary_func):
-    p = solvePressure(u, v, sizeX, sizeY, h, mat)[...,0]
+def project(u,v,sizeX,sizeY, lu, q, h, boundary_func):
+    p = solvePressure(u, v, sizeX, sizeY, h, lu, q)[...,0]
 
     gradP_u = (p - tf.roll(p, shift=1, axis=0))/h
     gradP_v = (p - tf.roll(p, shift=sizeY, axis=0))/h
@@ -241,7 +242,7 @@ def dissipate(s,a,dt):
     '''
     return s/(1+dt*a)
 
-def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
+def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu, _p, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
     '''
     Performs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
@@ -283,7 +284,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
         _u, _v = set_boundary(_u, _v, _sizeX, _sizeY, boundary_func)
 
     # projection step
-    _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h, boundary_func)
+    _u, _v = project(_u, _v, _sizeX, _sizeY, _lu, _p, _h, boundary_func)
 
     ## Sstep
     if (source is not None) and (t < source["time"]) :
@@ -539,7 +540,8 @@ if __name__ in ["__main__", "__builtin__"]:
                 _Sdiffuse_mat = tf.convert_to_tensor(build_laplacian_matrix(_sizeX, _sizeY, -_kDiff/(_d*_d), 1+4*_kDiff/(_d*_d) ), dtype=tf.float32)
                 _Vdiffuse_mat = tf.convert_to_tensor(build_laplacian_matrix(_sizeX, _sizeY, -_visc/(_d*_d), 1+4*_visc/(_d*_d) ), dtype=tf.float32)
                 _laplacian_mat = tf.convert_to_tensor(build_laplacian_matrix(_sizeX, _sizeY,1/(_d*_d),-4/(_d*_d)), dtype=tf.float32)
-                new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _laplacian_mat, _alpha, _Vdiffuse_mat, _visc, _Sdiffuse_mat, _kDiff)
+                _lu, _p = tf.linalg.lu(_laplacian_mat)
+                new_u, new_v, new_s = update(_u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _lu, _p, _alpha, _Vdiffuse_mat, _visc, _Sdiffuse_mat, _kDiff)
             print("Executing OK")
             grad_solver = tape.gradient([new_s, new_u, new_v], [_u, _v, _s, _dt])
 

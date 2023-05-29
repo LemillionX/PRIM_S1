@@ -11,8 +11,8 @@ from tqdm import tqdm
 #               General settings
 ##############################################################
 
-SIZE_X = 25          # number of elements in the x-axis
-SIZE_Y = 25          # number of elements in the y-axis
+SIZE_X = 200          # number of elements in the x-axis
+SIZE_Y = 200          # number of elements in the y-axis
 TIMESTEP = 0.025
 N_FRAMES = 200     # number of frames to draw
 GRID_MIN = -1
@@ -54,9 +54,6 @@ for j in range(SIZE_Y):
         if r < VORTEX_RADIUS:
             density_init[i+j*SIZE_X] = 1.0
 
-# Enable timeline recording
-tf.profiler.experimental.start('logdir/profiler_outdir')
-
 ## Initialise variables
 laplace_mat =  tf.convert_to_tensor(slv.build_laplacian_matrix(SIZE_X, SIZE_Y, 1/(D*D), -4/(D*D)), dtype=tf.float32)
 velocity_diff_mat = tf.convert_to_tensor(slv.build_laplacian_matrix(SIZE_X, SIZE_Y, -VISC*TIMESTEP/(D*D), 1+4*VISC*TIMESTEP/(D*D) ), dtype=tf.float32)
@@ -67,6 +64,7 @@ density_field = tf.convert_to_tensor(density_init, dtype=tf.float32)
 dt = tf.convert_to_tensor(TIMESTEP, dtype=tf.float32)
 COORDS_X = tf.convert_to_tensor(COORDS_X, dtype=tf.float32)
 COORDS_Y = tf.convert_to_tensor(COORDS_Y, dtype=tf.float32)
+lu, p = tf.linalg.lu(laplace_mat)
 
 ##############################################################
 #               Plot initialisation 
@@ -114,7 +112,7 @@ viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).num
 if SIZE_X < RESOLUTION_LIMIT:
     plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(0)))
 for t in pbar:
-    velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, laplace_mat, ALPHA, velocity_diff_mat, VISC, scalar_diffuse_mat, K_DIFF)
+    velocity_field_x, velocity_field_y, density_field = slv.update(velocity_field_x, velocity_field_y, density_field ,SIZE_X, SIZE_Y, COORDS_X, COORDS_Y, dt, GRID_MIN, D, lu, p, ALPHA, velocity_diff_mat, VISC, scalar_diffuse_mat, K_DIFF)
     # Viz update
     viz.draw_density(np.flipud(tf.reshape(density_field, shape=(SIZE_X, SIZE_Y)).numpy()), os.path.join(DIR_PATH, DENSITY_NAME, '{:04d}.png'.format(t)))
     if SIZE_X < RESOLUTION_LIMIT:
@@ -123,12 +121,6 @@ for t in pbar:
         v_viz = tf.reshape(vel_y, shape=(SIZE_X, SIZE_Y)).numpy()
         Q.set_UVC(u_viz,v_viz)
         plt.savefig(os.path.join(SAVE_PATH, '{:04d}'.format(t)))
-
-# Set the step number
-tf.summary.experimental.set_step(1)
-# Stop profiler
-tf.profiler.experimental.stop()
-
 
 if SIZE_X < RESOLUTION_LIMIT:
     viz.frames2gif(os.path.join(DIR_PATH, FOLDER_NAME), os.path.join(DIR_PATH, FOLDER_NAME+".gif"), FPS)

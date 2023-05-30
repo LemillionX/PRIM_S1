@@ -201,9 +201,9 @@ def build_laplacian_matrix(sizeX,sizeY,a,b, boundary_func="dirichlet"):
     '''
     print("Building laplacian matrix and its LU factorisation, can take a while...")
 
-    # Identity Matrix
+    # Identity Matrix of low resolution to save memory because the step is going to skipped in the solver anyway
     if a == 0 and b == 1:
-        return tf.linalg.lu(tf.eye(sizeX*sizeY,dtype=tf.float32))
+        return tf.linalg.lu(tf.eye(10*10,dtype=tf.float32))
     
     mat = np.zeros((sizeX*sizeY,sizeX*sizeY), dtype=np.float32)
     for it in range(sizeX*sizeY):

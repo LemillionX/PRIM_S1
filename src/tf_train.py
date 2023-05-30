@@ -73,8 +73,8 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     ## Initial guess
     loss, d_loss, v_loss = loss_quadratic(density_field, target_density)
     with tf.GradientTape() as tape:
-        velocity_field_x = tf.Variable(velocity_field_x)
-        velocity_field_y = tf.Variable(velocity_field_y)
+        velocity_field_x = tf.Variable(trained_vel_x)
+        velocity_field_y = tf.Variable(trained_vel_y)
         _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, keyframes, keyidx, _boundary, source, leave=False)
         loss,  d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
     grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
@@ -92,6 +92,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         with tf.GradientTape() as tape:
             velocity_field_x = tf.Variable(trained_vel_x)
             velocity_field_y = tf.Variable(trained_vel_y)
+            velocity_field_x, velocity_field_y = slv.project(velocity_field_x, velocity_field_y, sizeX, sizeY, laplace_mat_LU, laplace_mat_P, h, _boundary) 
             _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, keyframes, keyidx, _boundary, source, leave=False)
             loss, d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
         count += 1

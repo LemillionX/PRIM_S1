@@ -91,6 +91,13 @@ def indexTo1D(i,j, sizeX):
     '''
     return j*sizeX+i
 
+@tf.function
+def addForces(u,v, dt, f_u,f_v):
+    if f_u is not None:
+        u += dt*f_u
+    if f_v is not None:
+        v += dt*f_v
+    return u,v
 
 @tf.function
 def set_boundary(u,v,sizeX,sizeY,boundary_func=None):
@@ -297,10 +304,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
     '''
     ## Vstep
     # add force step
-    if f_u is not None:
-        _u += _dt*f_u
-    if f_v is not None:
-        _v += _dt*f_v
+    _u, _v = addForces(_u, _v, _dt, f_u, f_v)
 
     # advection step
     new_u = advectStaggeredU(_u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)

@@ -8,7 +8,7 @@ import os
 FILENAME = ""
 
 # Simulation settings
-MAX_ITER = 150
+MAX_ITER = 50
 LEARNING_RATE = 1.5
 WEIGHT = 1
 N_FRAMES = 80     # number of the frame where we want the shape to be matched
@@ -25,7 +25,7 @@ FLUID_SETTINGS["source"] = None
 
 # Load data from .json file
 CONSTRAINT = {}
-CONSTRAINT_FILE = "snake_40x40"
+CONSTRAINT_FILE = "batch1_traj1"
 with open("../data/"+CONSTRAINT_FILE+".json") as file:
     print('Loading file', CONSTRAINT_FILE+".json")
     CONSTRAINT = json.load(file)
@@ -71,7 +71,7 @@ if len(CONSTRAINT["indices"]) > 0:
     # u_init = [CONSTRAINT["values"][0][0][0] for _ in range(len(COORDS_X))]
     # v_init = [CONSTRAINT["values"][0][1][0] for _ in range(len(COORDS_Y))]
     CONSTRAINT["keyframes"] = [round((i+1)*N_FRAMES/(len(CONSTRAINT["indices"])+1)) for i in range(len(CONSTRAINT["indices"]))]
-    CONSTRAINT["weights"] = [WEIGHT  for _ in range(len(CONSTRAINT["indices"]))]
+    CONSTRAINT["weights"] = tf.convert_to_tensor([WEIGHT  for _ in range(len(CONSTRAINT["indices"]))],  dtype=tf.float32)
 else:
     print("Velocity is NOT constrained")
     CONSTRAINT = None

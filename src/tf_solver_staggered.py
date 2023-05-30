@@ -423,8 +423,8 @@ def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, 
         _s = new_s
         if t in keyframes:
             count += 1
-            _midVel.append([tf.identity(_u[keyidx[count]]), tf.identity(_v[keyidx[count]])])
-    return new_u, new_v, new_s, _midVel
+            _midVel.append(tf.stack([_u[keyidx[count]], _v[keyidx[count]]], 0))
+    return new_u, new_v, new_s, tf.stack(_midVel)
 
 if __name__ in ["__main__", "__builtin__"]:
     _sizeX = 5

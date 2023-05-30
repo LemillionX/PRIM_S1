@@ -9,11 +9,7 @@ from tqdm import tqdm
 @tf.function
 def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
     density_loss = 0.5*(tf.norm(current - target)**2)
-    velocity_loss = tf.constant(0, dtype=tf.float32) 
-    for t in range(len(midVel)): # iterate over keyframes
-        velocity_loss += weights[t]*(1.0+tf.keras.losses.cosine_similarity(tf.reshape(tf.convert_to_tensor(midVel[t]), [-1]),  tf.convert_to_tensor(currentMidVel[t])))
-        # for i in range(len(midVel[t])): # iterate over dimension
-            # velocity_loss += 0.5*weights[t]*(tf.norm(currentMidVel[t][i] - midVel[t][i]))**2
+    velocity_loss = tf.reduce_sum(tf.multiply(weights, 1.0 + tf.keras.losses.cosine_similarity(midVel, currentMidVel)))
     return density_loss + velocity_loss, density_loss, velocity_loss
 
 
@@ -57,7 +53,7 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     if constraint is not None:
         keyframes = constraint["keyframes"]
         keyidx = constraint["indices"]
-        keyvalues = [ [tf.convert_to_tensor(u[0], dtype=tf.float32), tf.convert_to_tensor(u[1], dtype=tf.float32)] for u in constraint["values"]]
+        keyvalues = tf.reshape(tf.convert_to_tensor(constraint["values"], dtype=tf.float32), (-1, 2*len(constraint["values"][0][0])))
         key_weights = constraint["weights"]
 
     ## Pre-build matrices

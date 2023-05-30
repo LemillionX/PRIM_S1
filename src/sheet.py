@@ -361,5 +361,40 @@ if len(sys.argv) > 1:
         v_viz = tf.reshape(v, shape=(SIZE, SIZE)).numpy()
         Q = ax.quiver(x, y, u, v, color='red', scale_units='width')
         plt.show()
-         
+    
+    if sys.argv[1] == "loss":
+        print("Loss")
+        size = 2
+        a = tf.range(size, dtype=tf.float32)
+        b = 2*tf.range(size, dtype=tf.float32)
+        c = 3*tf.range(size, dtype=tf.float32)
+        d = tf.random.uniform([size], dtype=tf.float32)
+        midVel = [1+a,1+b]
+        # w = [i+1  for i in range(len(midVel))]
+        # print("a = ", a)
+        # print("midVel = ",midVel)
+        # loss = tf.constant(0, dtype=tf.float32)
+        # for t in range(len(midVel)):
+        #     loss += w[t]* tf.norm(tf.reshape(midVel[t],  [-1]))
+        #     print(w[t]*tf.reshape(midVel[t],  [-1]))
+        # print("loss = ", loss)
+
+
+        values =  [[[-2, 2], [0, 0]],[[-1, 0], [0, 0]]]
+        values_pred =  [[[2, -2], [0, 0]],[[-1, 0], [0, 0]]]
+        depth = 2*len(values[0][0])
+        w = tf.convert_to_tensor([i+1  for i in range(len(values))], dtype=tf.float32)
+
+        y = tf.reshape(tf.convert_to_tensor(values, dtype=tf.float32), (-1, depth))
+        y_pred = tf.reshape(tf.convert_to_tensor(values_pred, dtype=tf.float32), (-1, depth))
+
+        print("y = ", y)
+        loss =  tf.multiply(w,1.0+tf.keras.losses.cosine_similarity(y, y_pred))
+        print("Cosine loss = ", loss)
+        print(" Loss = ", tf.reduce_sum(loss))
+
+        # a = tf.concat(midVel, 0)
+        # print("a = ", a)
+
+
 

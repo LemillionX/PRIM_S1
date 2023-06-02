@@ -41,6 +41,8 @@ class Menu(QtWidgets.QVBoxLayout):
         print("Load file")
         data = callback.loadFromJSON()
         # print(data)
+        self.canvas.setInitialDensity(data["init_density"])
+        self.canvas.setTargetDensity(data["target_density"])
 
     def reset_config(self):
         print("Reset file")

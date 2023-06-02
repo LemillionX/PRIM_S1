@@ -1,5 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt
+import numpy as np
 
 class Canvas(QtWidgets.QLabel):
 
@@ -11,8 +12,14 @@ class Canvas(QtWidgets.QLabel):
         pixmap.fill(Qt.white)
         self.setPixmap(pixmap)
 
+        # Grid attributes
         self.gridResolution = 20
 
+        # Fluid attributes
+        self.initialDensity = np.zeros((self.gridResolution, self.gridResolution))
+        self.targetDensity = np.zeros((self.gridResolution, self.gridResolution))
+
+        # Drawing attributes
         self.last_x, self.last_y = None, None
         self.pen_color = QtGui.QColor('#000000')
         self.lineData = []
@@ -56,13 +63,26 @@ class Canvas(QtWidgets.QLabel):
         painter.end()
         self.update()
 
-    def drawCell(self, i, j, alpha=255):
+    def drawCell(self, i, j, r=0,g=0,b=0, alpha=255):
         painter = QtGui.QPainter(self.pixmap())
         blocSize = self.size/self.gridResolution
         pen = QtGui.QPen()
         pen.setWidth(int(blocSize))
-        pen.setColor(QtGui.QColor(255,0,0,alpha))
+        pen.setColor(QtGui.QColor(r,g,b,alpha))
         painter.setPen(pen)
-        painter.drawPoint(int(blocSize*(i+0.5)), int(blocSize*(j+0.5)))
+        painter.drawPoint(int(blocSize*(i+0.5)), int(blocSize*(self.gridResolution-1 - j+0.5)))
         painter.end()
         self.update()
+
+    def drawDensity(self, density, r,g,b):
+        for i in range(self.gridResolution):
+            for j in range(self.gridResolution):
+                self.drawCell(i,j, r,g,b,int(255*density[i+j*self.gridResolution]))
+
+    def setInitialDensity(self, density):
+        self.initialDensity = np.array(density)
+        self.drawDensity(self.initialDensity, 0,255,0)
+
+    def setTargetDensity(self, density):
+        self.targetDensity = np.array(density)
+        self.drawDensity(self.targetDensity, 255,255,0)

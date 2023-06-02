@@ -5,9 +5,13 @@ class Canvas(QtWidgets.QLabel):
 
     def __init__(self):
         super().__init__()
-        pixmap = QtGui.QPixmap(1080, 720)
+        self.size = 1000
+
+        pixmap = QtGui.QPixmap(self.size,  self.size)
         pixmap.fill(Qt.white)
         self.setPixmap(pixmap)
+
+        self.gridResolution = 20
 
         self.last_x, self.last_y = None, None
         self.pen_color = QtGui.QColor('#000000')
@@ -41,3 +45,24 @@ class Canvas(QtWidgets.QLabel):
         self.last_x = None
         self.last_y = None
         # print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.lineData)))
+
+    def drawGrid(self):
+        print("Drawing Grid")
+        blocSize = self.size/self.gridResolution
+        painter = QtGui.QPainter(self.pixmap())
+        for i in range(0, self.gridResolution+1):
+            painter.drawLine(int(blocSize*i), self.size, int(blocSize*i),0)
+            painter.drawLine(0, int(blocSize*i), self.size, int(blocSize*i))
+        painter.end()
+        self.update()
+
+    def drawCell(self, i, j, alpha=255):
+        painter = QtGui.QPainter(self.pixmap())
+        blocSize = self.size/self.gridResolution
+        pen = QtGui.QPen()
+        pen.setWidth(int(blocSize))
+        pen.setColor(QtGui.QColor(255,0,0,alpha))
+        painter.setPen(pen)
+        painter.drawPoint(int(blocSize*(i+0.5)), int(blocSize*(j+0.5)))
+        painter.end()
+        self.update()

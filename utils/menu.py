@@ -40,9 +40,12 @@ class Menu(QtWidgets.QVBoxLayout):
     def load_config(self):
         print("Load file")
         data = callback.loadFromJSON()
+        self.canvas.clean()
         # print(data)
         self.canvas.setInitialDensity(data["init_density"])
         self.canvas.setTargetDensity(data["target_density"])
+        if "curves" in data:
+            self.canvas.setCurves(data["curves"])
 
     def reset_config(self):
         print("Reset file")

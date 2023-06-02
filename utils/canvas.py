@@ -6,7 +6,7 @@ class Canvas(QtWidgets.QLabel):
 
     def __init__(self):
         super().__init__()
-        self.size = 1000
+        self.size = 800
 
         pixmap = QtGui.QPixmap(self.size,  self.size)
         pixmap.fill(Qt.white)
@@ -22,7 +22,7 @@ class Canvas(QtWidgets.QLabel):
         # Drawing attributes
         self.last_x, self.last_y = None, None
         self.pen_color = QtGui.QColor('#000000')
-        self.lineData = []
+        self.curves = []
 
     def set_pen_color(self, c):
         self.pen_color = QtGui.QColor(c)
@@ -31,7 +31,7 @@ class Canvas(QtWidgets.QLabel):
         if self.last_x is None: # First event.
             self.last_x = e.x()
             self.last_y = e.y()
-            self.lineData.append([self.last_x, self.last_y])
+            self.curves.append([self.last_x, self.last_y])
             return # Ignore the first time.
 
         painter = QtGui.QPainter(self.pixmap())
@@ -46,12 +46,12 @@ class Canvas(QtWidgets.QLabel):
         # Update the origin for next time.
         self.last_x = e.x()
         self.last_y = e.y()
-        self.lineData[-1].append([self.last_x, self.last_y])
+        self.curves[-1].append([self.last_x, self.last_y])
 
     def mouseReleaseEvent(self, e):
         self.last_x = None
         self.last_y = None
-        # print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.lineData)))
+        # print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.curves)))
 
     def drawGrid(self):
         print("Drawing Grid")
@@ -86,3 +86,23 @@ class Canvas(QtWidgets.QLabel):
     def setTargetDensity(self, density):
         self.targetDensity = np.array(density)
         self.drawDensity(self.targetDensity, 255,255,0)
+
+    def drawCurve(self, curves):
+        painter = QtGui.QPainter(self.pixmap())
+        pen = painter.pen()
+        pen.setWidth(4)
+        painter.setPen(pen)
+        for line in curves:
+            for i in range(len(line)-1):
+                painter.drawLine(line[i][0], line[i][1], line[i+1][0], line[i+1][1])
+        painter.end()
+        self.update()
+
+    def setCurves(self, curves):
+        self.curves = curves
+        self.drawCurve(self.curves)
+
+    def clean(self):
+        pixmap = QtGui.QPixmap(self.size,  self.size)
+        pixmap.fill(Qt.white)
+        self.setPixmap(pixmap)

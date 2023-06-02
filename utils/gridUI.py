@@ -210,7 +210,7 @@ while running:
             # If the left mouse button is released, add the curve to all curves
             if event.button == 1:
                 drawing = False
-                # print(visited_cells)
+                print(visited_cells)
 
         # Check for button press event
         if event.type == pygame.USEREVENT:

@@ -8,16 +8,21 @@ class Canvas(QtWidgets.QLabel):
         super().__init__()
         self.size = 800
 
-        pixmap = QtGui.QPixmap(self.size,  self.size)
-        pixmap.fill(Qt.white)
-        self.setPixmap(pixmap)
-
         # Mode attribute
         self.mode = "trajectory"
 
         # Grid attributes
+        self.grid = QtWidgets.QLabel(self)
+        grid_pixmap = QtGui.QPixmap(self.size,  self.size)
+        grid_pixmap.fill(Qt.transparent)
+        self.grid.setPixmap(grid_pixmap)
         self.gridResolution = 20
         self.blocSize = self.size/self.gridResolution
+
+        # Initialise the pixel map
+        pixmap = QtGui.QPixmap(self.size,  self.size)
+        pixmap.fill(Qt.white)
+        self.setPixmap(pixmap)
 
         # Fluid attributes
         self.initialDensity = np.zeros(self.gridResolution*self.gridResolution)
@@ -56,7 +61,7 @@ class Canvas(QtWidgets.QLabel):
     def mouseReleaseEvent(self, e):
         self.last_x = None
         self.last_y = None
-        print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.curves)))
+        # print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.curves)))
 
     def mousePressEvent(self, e):
         if self.mode == "initial_density":
@@ -77,12 +82,18 @@ class Canvas(QtWidgets.QLabel):
 
     def drawGrid(self):
         print("Drawing Grid")
-        painter = QtGui.QPainter(self.pixmap())
+        painter = QtGui.QPainter(self.grid.pixmap())
         for i in range(0, self.gridResolution+1):
             painter.drawLine(int(self.blocSize*i), self.size, int(self.blocSize*i),0)
             painter.drawLine(0, int(self.blocSize*i), self.size, int(self.blocSize*i))
         painter.end()
         self.update()
+
+    def hideGrid(self):
+        print("Hiding Grid")
+        grid_pixmap = QtGui.QPixmap(self.size,  self.size)
+        grid_pixmap.fill(Qt.transparent)
+        self.grid.setPixmap(grid_pixmap)        
 
     def drawCell(self, i, j, r=0,g=0,b=0, alpha=255):
         painter = QtGui.QPainter(self.pixmap())

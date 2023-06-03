@@ -38,8 +38,8 @@ class Menu(QtWidgets.QVBoxLayout):
         self.resetTrajButton.clicked.connect(self.reset_config)
         self.addWidget(self.resetTrajButton)
 
-        self.drawGridButton = QtWidgets.QPushButton('Draw Grid')
-        self.drawGridButton.clicked.connect(self.drawGrid)
+        self.drawGridButton = QtWidgets.QCheckBox('Draw Grid')
+        self.drawGridButton.stateChanged.connect(self.toggleGrid)
         self.addWidget(self.drawGridButton)
 
         self.testButton = QtWidgets.QPushButton('Test Button')
@@ -79,8 +79,11 @@ class Menu(QtWidgets.QVBoxLayout):
         self.canvas.setInitialDensity(self.canvas.initialDensity)
         self.canvas.setTargetDensity(self.canvas.targetDensity)
 
-    def drawGrid(self):
-        self.canvas.drawGrid()
+    def toggleGrid(self, state):
+        if state == QtCore.Qt.Checked:
+            self.canvas.drawGrid()
+        else:
+            self.canvas.hideGrid()
 
     def test(self):
-        self.canvas.drawCell(5,0)
+        print("Hello World !")

@@ -8,8 +8,6 @@ The code are in the `src` folder, and the results of simulations will be stored 
 <li> Merge UI and fluid simulation
 <li> Merge UI and animation layers
 <li> Change the speed of the trajectory
-<li> Try training with forces ?
-<li> Divide and conquer approach ?
 
 ## Progress
 ### Week 29/03

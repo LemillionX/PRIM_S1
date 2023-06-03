@@ -38,8 +38,6 @@ class Menu(QtWidgets.QVBoxLayout):
         self.combobox = QtWidgets.QComboBox()
         self.combobox.addItems(['trajectory', 'initial_density', 'target_density'])
         self.fluidConstraintsLayout.addWidget(self.combobox)
-        # # Connect signals to the methods.
-        # self.combobox.activated.connect(self.activated)
         self.combobox.currentTextChanged.connect(self.setMode)
 
         self.saveButton = QtWidgets.QPushButton('Save Config')

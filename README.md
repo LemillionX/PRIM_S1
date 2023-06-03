@@ -4,28 +4,42 @@ by Sammy Rasamimanana <br>
 
 The code are in the `src` folder, and the results of simulations will be stored in the `output` folder.<br>
 
-### Stable fluid solver
-For only the stable fluid solver, you can tweak the parameters in `simulator.py` and then run this file. The corresponding solver is in `solver_v2.py`.
-```
-cd src
-python .\simulator.py
-```
+## TO DO
+<li> Merge UI and fluid simulation
+<li> Merge UI and animation layers
+<li> Change the speed of the trajectory
+<li> Try training with forces ?
+<li> Divide and conquer approach ?
 
-### Differentiable stable fluid solver
-If you want to use the TensorFlow version of the solver, you can tweak the parameters in `tf_main.py` and then run it. The corresponding solver is in `tf_solver.py`.
-```
-cd src
-python .\tf_main.py
-```
+## Progress
+### Week 29/03
+<li> Code optimization of the TensorFlow pipeline
+<li> Rewrite boundary conditions on centered grid
 
-### Matching shape training
-It is possible to tackle the matching shape problem using `training.py` to train the model using TensorFlow. Then you can plug the result you get in `testing.py` or in `simulator.py` which uses the normal version of the solver to gain speed (over the tf version).
-```
-cd src
-python .\training.py
-...
-> After 100 iterations, the velocity field is 
-> x component = [...]
-> y component = [...]
-> and gradient norm = ... 
-```
+### Week 05/04
+<li> Adding intermediate velocity constraints
+<li> Tests on some constraints
+
+### Week 12/04
+<li> Created basic UI to simplify tests
+<li> Parsing file to .json format to make tests more organized
+<li> Changing initial condition to be guided by the trajectory
+
+### Week 12/04
+<li> Change loss function using cosine loss
+<li> Change initial guess
+<li> Try training dt
+<li> Add load function in UI
+
+### Week 26/04
+<li> Try on larger grid
+<li> Try curl approach
+<li> Try vortex approach
+
+### Week 15/05
+<li> Rewrite using Staggered Grid
+<li> Add BC variable (dirichlet or neumann)
+<li> Forcing using LU decomposition to speed up (No Sparse Tensor solver yet in tf...)
+<li> Training using Staggered Grid and neumann
+<li> Project the initial velocity field 
+<li> Rewrite loss function so that it uses only tensors

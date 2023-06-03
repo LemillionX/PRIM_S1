@@ -12,13 +12,16 @@ class Canvas(QtWidgets.QLabel):
         pixmap.fill(Qt.white)
         self.setPixmap(pixmap)
 
+        # Mode attribute
+        self.mode = "trajectory"
+
         # Grid attributes
         self.gridResolution = 20
         self.blocSize = self.size/self.gridResolution
 
         # Fluid attributes
-        self.initialDensity = np.zeros((self.gridResolution, self.gridResolution))
-        self.targetDensity = np.zeros((self.gridResolution, self.gridResolution))
+        self.initialDensity = np.zeros(self.gridResolution*self.gridResolution)
+        self.targetDensity = np.zeros(self.gridResolution*self.gridResolution)
 
         # Drawing attributes
         self.last_x, self.last_y = None, None
@@ -28,31 +31,43 @@ class Canvas(QtWidgets.QLabel):
     def set_pen_color(self, c):
         self.pen_color = QtGui.QColor(c)
 
+    def setMode(self, mode):
+        self.mode = mode
+
     def mouseMoveEvent(self, e):
-        if self.last_x is None: # First event.
+        if self.mode == "trajectory":
+            if self.last_x is None: # First event.
+                self.last_x = e.x()
+                self.last_y = e.y()
+                self.curves.append([self.last_x, self.last_y])
+                return # Ignore the first time.
+
+            painter = QtGui.QPainter(self.pixmap())
+            p = painter.pen()
+            p.setWidth(4)
+            p.setColor(self.pen_color)
+            painter.setPen(p)
+            painter.drawLine(self.last_x, self.last_y, e.x(), e.y())
+            painter.end()
+            self.update()
+
+            # Update the origin for next time.
             self.last_x = e.x()
             self.last_y = e.y()
-            self.curves.append([self.last_x, self.last_y])
-            return # Ignore the first time.
-
-        painter = QtGui.QPainter(self.pixmap())
-        p = painter.pen()
-        p.setWidth(4)
-        p.setColor(self.pen_color)
-        painter.setPen(p)
-        painter.drawLine(self.last_x, self.last_y, e.x(), e.y())
-        painter.end()
-        self.update()
-
-        # Update the origin for next time.
-        self.last_x = e.x()
-        self.last_y = e.y()
-        self.curves[-1].append([self.last_x, self.last_y])
+            self.curves[-1].append([self.last_x, self.last_y])
 
     def mouseReleaseEvent(self, e):
         self.last_x = None
         self.last_y = None
         # print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.curves)))
+
+    def mousePressEvent(self, e):
+        if self.mode == "initial_density":
+            i = e.x()//int(self.blocSize)
+            j = self.gridResolution - 1 - e.y()//int(self.blocSize)
+            self.drawCell(i,j,255*self.initialDensity[i+j*self.gridResolution], 255, 255*self.initialDensity[i+j*self.gridResolution])
+            self.initialDensity[i+j*self.gridResolution] = 1 - self.initialDensity[i+j*self.gridResolution]
+
 
     def setGridResolution(self, resolution):
         self.gridResolution = resolution

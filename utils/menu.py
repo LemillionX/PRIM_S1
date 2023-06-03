@@ -12,6 +12,10 @@ class Menu(QtWidgets.QVBoxLayout):
 
         self.canvas = canvas.Canvas()
 
+        self.resolutionText = QtWidgets.QLabel()
+        self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
+        self.addWidget(self.resolutionText)
+
         self.saveButton = QtWidgets.QPushButton('Save Config')
         self.saveButton.clicked.connect(self.save_config)
         self.addWidget(self.saveButton)
@@ -28,13 +32,15 @@ class Menu(QtWidgets.QVBoxLayout):
         self.drawGridButton.clicked.connect(self.drawGrid)
         self.addWidget(self.drawGridButton)
 
+        self.editInitDensity = QtWidgets.QPushButton('Edit Initial Density')
+        self.editInitDensity.clicked.connect(self.editInitialDensity)
+        self.addWidget(self.editInitDensity)
+
         self.testButton = QtWidgets.QPushButton('Test Button')
         self.testButton.clicked.connect(self.test)
         self.addWidget(self.testButton)
 
-        self.resolutionText = QtWidgets.QLabel()
-        self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
-        self.addWidget(self.resolutionText)
+
 
     def setCanvas(self, canva):
         self.canvas = canva
@@ -65,3 +71,8 @@ class Menu(QtWidgets.QVBoxLayout):
 
     def test(self):
         self.canvas.drawCell(5,0)
+
+    def editInitialDensity(self):
+        print("Editing Initial Density")
+        self.canvas.mode = "initial_density"
+        print(self.canvas.mode)

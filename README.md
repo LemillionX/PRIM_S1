@@ -5,6 +5,7 @@ by Sammy Rasamimanana <br>
 The code are in the `src` folder, and the results of simulations will be stored in the `output` folder.<br>
 
 ## TO DO
+<li> Advanced UI using PyQt5 (ok)
 <li> Merge UI and fluid simulation
 <li> Merge UI and animation layers
 <li> Change the speed of the trajectory

@@ -24,6 +24,15 @@ def open_file():
     top.destroy()
     return file_name
 
+def points2indices(curves, cell_size, grid_height):
+    indices = []
+    for curve in curves:
+        indices.append([])
+        for points in curve:
+            if len(indices[-1]) == 0 or indices[-1][-1] != [points[0]//cell_size, grid_height-1-points[1]//cell_size]:
+                indices[-1].append([points[0]//cell_size, grid_height-1-points[1]//cell_size])
+    return indices
+
 
 def saveToJSON(cells, target_density, init_density, curve, size, file):
     indices = []

@@ -31,15 +31,12 @@ class Canvas(QtWidgets.QLabel):
     def set_pen_color(self, c):
         self.pen_color = QtGui.QColor(c)
 
-    def setMode(self, mode):
-        self.mode = mode
-
     def mouseMoveEvent(self, e):
         if self.mode == "trajectory":
             if self.last_x is None: # First event.
                 self.last_x = e.x()
                 self.last_y = e.y()
-                self.curves.append([self.last_x, self.last_y])
+                self.curves.append([[self.last_x, self.last_y]])
                 return # Ignore the first time.
 
             painter = QtGui.QPainter(self.pixmap())
@@ -59,7 +56,7 @@ class Canvas(QtWidgets.QLabel):
     def mouseReleaseEvent(self, e):
         self.last_x = None
         self.last_y = None
-        # print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.curves)))
+        print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.curves)))
 
     def mousePressEvent(self, e):
         if self.mode == "initial_density":
@@ -67,6 +64,11 @@ class Canvas(QtWidgets.QLabel):
             j = self.gridResolution - 1 - e.y()//int(self.blocSize)
             self.drawCell(i,j,255*self.initialDensity[i+j*self.gridResolution], 255, 255*self.initialDensity[i+j*self.gridResolution])
             self.initialDensity[i+j*self.gridResolution] = 1 - self.initialDensity[i+j*self.gridResolution]
+        if self.mode == "target_density":
+            i = e.x()//int(self.blocSize)
+            j = self.gridResolution - 1 - e.y()//int(self.blocSize)
+            self.drawCell(i,j,255, 255, 255*self.targetDensity[i+j*self.gridResolution])
+            self.targetDensity[i+j*self.gridResolution] = 1 - self.targetDensity[i+j*self.gridResolution]
 
 
     def setGridResolution(self, resolution):

@@ -35,6 +35,10 @@ The code are in the `src` folder, and the results of simulations will be stored 
 <li> Try vortex approach
 
 ### Week 15/05
+<li> Tests with manually placed vortices
+<li> Tests with adding vortices at specific frames 
+
+### Week 22/05
 <li> Rewrite using Staggered Grid
 <li> Add BC variable (dirichlet or neumann)
 <li> Forcing using LU decomposition to speed up (No Sparse Tensor solver yet in tf...)

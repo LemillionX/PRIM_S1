@@ -5,7 +5,7 @@ import tkinter
 import tkinter.filedialog
 
 def prompt_file():
-    """Create a Tk file dialog and cleanup when finished"""
+    """Create a Tk file dialog to save file and cleanup when finished"""
     top = tkinter.Tk()
     files = [('JSON file', '*.json')]
     top.withdraw()  # hide window
@@ -16,7 +16,7 @@ def prompt_file():
     return None
 
 def open_file():
-    """Create a Tk file dialog and cleanup when finished"""
+    """Create a Tk file dialog to load file and cleanup when finished"""
     top = tkinter.Tk()
     files = [('JSON file', '*.json')]
     top.withdraw()  # hide window
@@ -25,6 +25,17 @@ def open_file():
     return file_name
 
 def points2indices(curves, cell_size, grid_height):
+    """
+    Gives the grid indices representation of a curve represented by its pixel-points
+
+    Args :
+        curves : a list of lists of ``[x,y]`` where ``x,y`` are ``int`` representing the pixel of the curves
+        celle_size: an ``int`` representing the size of the grid cells
+        grid_height: an ``int`` representing the size of the grid
+    
+    Returns :
+        indices : a list of lists of ``[i,j]`` where ``i,j`` are ``int`` referring to ``cell[i,j]``
+    """
     indices = []
     for curve in curves:
         indices.append([])
@@ -35,6 +46,17 @@ def points2indices(curves, cell_size, grid_height):
 
 
 def saveToJSON(cells, target_density, init_density, curve, size, file):
+    """"
+    Parses and saves the data to a ``.json`` file
+
+    Args:
+        cells: a list of ``[i,j]`` where ``i,j`` are referring to the cells visited by the trajectory
+        target_density: a list of size N representing the target density
+        init_density: a list of size N representing the initial density
+        curve : a list of of ``[x,y]`` where ``x,y`` are ``int`` representing the pixel of the curve
+        size: an ``int`` that is the size of the grid
+        file: a ``FileDescriptorOrPath`` where to save the ``.json``
+    """
     indices = []
     vel = []
     for i in range(1, len(cells)-1):
@@ -47,6 +69,9 @@ def saveToJSON(cells, target_density, init_density, curve, size, file):
 
     
 def loadFromJSON():
+    """
+    Loads the data from a ``.json `` file
+    """
     file = open_file()
     if file is not None:
         print("Loading {file}".format(file=file))

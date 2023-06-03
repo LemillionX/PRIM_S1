@@ -12,39 +12,64 @@ class Menu(QtWidgets.QVBoxLayout):
 
         self.canvas = canvas.Canvas()
 
+        # General Widgets
         self.resolutionText = QtWidgets.QLabel()
         self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
         self.resolutionText.setFixedHeight(int(0.02*self.canvas.size))
         self.addWidget(self.resolutionText)
 
-        
-        self.combobox = QtWidgets.QComboBox()
-        self.combobox.addItems(['trajectory', 'initial_density', 'target_density'])
-        self.addWidget(self.combobox)
-        # # Connect signals to the methods.
-        # self.combobox.activated.connect(self.activated)
-        self.combobox.currentTextChanged.connect(self.setMode)
-        # self.combobox.currentIndexChanged.connect(self.index_changed)
-
-        self.saveButton = QtWidgets.QPushButton('Save Config')
-        self.saveButton.clicked.connect(self.save_config)
-        self.addWidget(self.saveButton)
-
-        self.loadButton = QtWidgets.QPushButton('Load Config')
-        self.loadButton.clicked.connect(self.load_config)
-        self.addWidget(self.loadButton)
-
-        self.resetTrajButton = QtWidgets.QPushButton('Reset Trajectory')
-        self.resetTrajButton.clicked.connect(self.reset_config)
-        self.addWidget(self.resetTrajButton)
-
         self.drawGridButton = QtWidgets.QCheckBox('Draw Grid')
         self.drawGridButton.stateChanged.connect(self.toggleGrid)
         self.addWidget(self.drawGridButton)
 
+        # Layout Chooser
+        self.layoutChooser = QtWidgets.QComboBox()
+        self.layoutChooser.addItems(['fluid_settings', 'fluid_constraints'])
+        self.addWidget(self.layoutChooser)
+        self.layoutChooser.currentIndexChanged.connect(self.setLayout)
+
+        # Different layouts
+        self.fluid_constraint_container = QtWidgets.QWidget()
+        self.fluid_simulation_container = QtWidgets.QWidget()
+        self.fluidConstraintsLayout = QtWidgets.QVBoxLayout(self.fluid_constraint_container)
+        self.fluidSimulationLayout = QtWidgets.QVBoxLayout(self.fluid_simulation_container)
+
+        # Fluid Constraints Layout
+        self.combobox = QtWidgets.QComboBox()
+        self.combobox.addItems(['trajectory', 'initial_density', 'target_density'])
+        self.fluidConstraintsLayout.addWidget(self.combobox)
+        # # Connect signals to the methods.
+        # self.combobox.activated.connect(self.activated)
+        self.combobox.currentTextChanged.connect(self.setMode)
+
+        self.saveButton = QtWidgets.QPushButton('Save Config')
+        self.saveButton.clicked.connect(self.save_config)
+        self.fluidConstraintsLayout.addWidget(self.saveButton)
+
+        self.loadButton = QtWidgets.QPushButton('Load Config')
+        self.loadButton.clicked.connect(self.load_config)
+        self.fluidConstraintsLayout.addWidget(self.loadButton)
+
+        self.resetTrajButton = QtWidgets.QPushButton('Reset Trajectory')
+        self.resetTrajButton.clicked.connect(self.reset_config)
+        self.fluidConstraintsLayout.addWidget(self.resetTrajButton)
+
+
+        # Fluid Settings Layout
         self.testButton = QtWidgets.QPushButton('Test Button')
         self.testButton.clicked.connect(self.test)
-        self.addWidget(self.testButton)
+        self.fluidSimulationLayout.addWidget(self.testButton)
+
+        # Stack Layouts
+        self.stacked_layout = QtWidgets.QStackedLayout()
+        self.stacked_layout.addWidget(self.fluid_simulation_container)
+        self.stacked_layout.addWidget(self.fluid_constraint_container)
+        self.addLayout(self.stacked_layout)
+
+    def setLayout(self, index):
+        print("Changing to Layout #"+str(index))
+        self.stacked_layout.setCurrentIndex(index)
+
 
     def setCanvas(self, canva):
         self.canvas = canva
@@ -66,6 +91,9 @@ class Menu(QtWidgets.QVBoxLayout):
         data = callback.loadFromJSON()
         self.canvas.clean()
         self.canvas.setGridResolution(int(np.sqrt(len(data["init_density"]))))
+        self.canvas.hideGrid()
+        if self.drawGridButton.isChecked():
+            self.canvas.drawGrid()
         self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
 
         self.canvas.setInitialDensity(data["init_density"])

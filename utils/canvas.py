@@ -81,7 +81,6 @@ class Canvas(QtWidgets.QLabel):
         self.blocSize = self.size/self.gridResolution
 
     def drawGrid(self):
-        print("Drawing Grid")
         painter = QtGui.QPainter(self.grid.pixmap())
         for i in range(0, self.gridResolution+1):
             painter.drawLine(int(self.blocSize*i), self.size, int(self.blocSize*i),0)
@@ -90,7 +89,6 @@ class Canvas(QtWidgets.QLabel):
         self.update()
 
     def hideGrid(self):
-        print("Hiding Grid")
         grid_pixmap = QtGui.QPixmap(self.size,  self.size)
         grid_pixmap.fill(Qt.transparent)
         self.grid.setPixmap(grid_pixmap)        

@@ -14,6 +14,7 @@ class Canvas(QtWidgets.QLabel):
 
         # Grid attributes
         self.gridResolution = 20
+        self.blocSize = self.size/self.gridResolution
 
         # Fluid attributes
         self.initialDensity = np.zeros((self.gridResolution, self.gridResolution))
@@ -53,24 +54,26 @@ class Canvas(QtWidgets.QLabel):
         self.last_y = None
         # print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.curves)))
 
+    def setGridResolution(self, resolution):
+        self.gridResolution = resolution
+        self.blocSize = self.size/self.gridResolution
+
     def drawGrid(self):
         print("Drawing Grid")
-        blocSize = self.size/self.gridResolution
         painter = QtGui.QPainter(self.pixmap())
         for i in range(0, self.gridResolution+1):
-            painter.drawLine(int(blocSize*i), self.size, int(blocSize*i),0)
-            painter.drawLine(0, int(blocSize*i), self.size, int(blocSize*i))
+            painter.drawLine(int(self.blocSize*i), self.size, int(self.blocSize*i),0)
+            painter.drawLine(0, int(self.blocSize*i), self.size, int(self.blocSize*i))
         painter.end()
         self.update()
 
     def drawCell(self, i, j, r=0,g=0,b=0, alpha=255):
         painter = QtGui.QPainter(self.pixmap())
-        blocSize = self.size/self.gridResolution
         pen = QtGui.QPen()
-        pen.setWidth(int(blocSize))
+        pen.setWidth(int(self.blocSize))
         pen.setColor(QtGui.QColor(r,g,b,alpha))
         painter.setPen(pen)
-        painter.drawPoint(int(blocSize*(i+0.5)), int(blocSize*(self.gridResolution-1 - j+0.5)))
+        painter.drawPoint(int(self.blocSize*(i+0.5)), int(self.blocSize*(self.gridResolution-1 - j+0.5)))
         painter.end()
         self.update()
 

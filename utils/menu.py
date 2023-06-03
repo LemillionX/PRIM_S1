@@ -3,6 +3,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt
 import callbacksUI as callback
 import canvas
+import numpy as np
 
 class Menu(QtWidgets.QVBoxLayout):
 
@@ -31,6 +32,10 @@ class Menu(QtWidgets.QVBoxLayout):
         self.testButton.clicked.connect(self.test)
         self.addWidget(self.testButton)
 
+        self.resolutionText = QtWidgets.QLabel()
+        self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
+        self.addWidget(self.resolutionText)
+
     def setCanvas(self, canva):
         self.canvas = canva
 
@@ -41,6 +46,9 @@ class Menu(QtWidgets.QVBoxLayout):
         print("Load file")
         data = callback.loadFromJSON()
         self.canvas.clean()
+        self.canvas.setGridResolution(int(np.sqrt(len(data["init_density"]))))
+        self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
+
         self.canvas.setInitialDensity(data["init_density"])
         self.canvas.setTargetDensity(data["target_density"])
         if "curves" in data:

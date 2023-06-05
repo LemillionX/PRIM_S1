@@ -6,7 +6,7 @@ class Canvas(QtWidgets.QLabel):
 
     def __init__(self):
         super().__init__()
-        self.size = 640
+        self.size = 480
 
         # Mode attribute
         self.mode = "trajectory"

@@ -46,9 +46,6 @@ class Fluid():
         self.filename = "fluid_simulation"
         self.file_to_play = None
 
-        # Initial drawing
-        self.drawDensity(self.d)
-
     def setCoords(self):
         coordsX = np.zeros(self.size*self.size)
         coordsY = np.zeros(self.size*self.size)
@@ -100,6 +97,9 @@ class Fluid():
         self.setSource()
 
         pbar = tqdm(range(1, self.Nframes+1), desc="Baking simulation...")
+        simulated_u.append(u.numpy().tolist())
+        simulated_v.append(v.numpy().tolist())
+        simulated_d.append(d.numpy().tolist())
         for t in pbar:
             f_u, f_v = slv.buoyancyForce(d, self.size, self.size, self.coordsX, self.coordsY, self.grid_min, self.h)
             u,v,d = slv.update(u, v, d, self.size, self.size, self.coordsX, self.coordsY, self.dt, self.grid_min, self.h, lu, p,
@@ -134,18 +134,10 @@ class Fluid():
             f, indent=4)
             print(file)
 
-    def drawDensity(self, density):
-        r= 255
-        g= 0
-        b= 0
-        blocSize = int(self.layer.size/self.size)
-        self.layer.clean()
-        for i in range(self.size):
-            for j in range(self.size):
-                self.layer.drawCell(blocSize, self.size, i,j, r,g,b,int(255*density[i+j*self.size]))
-
     def loadSettings(self, settings):
         self.Nframes = settings["N_FRAMES"]
+        self.size = settings["SIZE"]
+        self.layer.grid_size = self.size
         self.dt = settings["TIMESTEP"]
         self.grid_min = settings["GRID_MIN"]
         self.grid_max = settings["GRID_MAX"]
@@ -166,11 +158,11 @@ class Fluid():
                 self.loadSettings(data)
                 self.layer.densities = data["d"]
             self.layer.update()
-            self.layer.timer.start(self.layer.interval)
+            self.layer.timer.start(int(1000/self.layer.fps))
 
     def update_frame(self):
         self.layer.current_frame += 1
-        if self.layer.current_frame+1 >= len(self.layer.densities):
+        if self.layer.current_frame >= len(self.layer.densities):
             self.layer.current_frame = 0
             self.layer.timer.stop()
             print("Done !")

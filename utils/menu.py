@@ -147,7 +147,7 @@ class Menu(QtWidgets.QVBoxLayout):
             self.fluid.useSource = False
     
     def setSourceDuration(self, frame):
-        self.fluid.sourceDuration = int(frame+1)
+        self.fluid.sourceDuration = int(frame)+1
 
     def setCanvas(self, canva):
         self.canvas = canva

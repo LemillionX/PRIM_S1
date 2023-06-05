@@ -20,21 +20,11 @@ class FluidLayer(QtWidgets.QLabel):
         self.densities = None
         self.current_frame = 0
         self.timer = QTimer(self)
-        self.interval = 10
+        self.fps = 30
         self.r, self.g, self.b = (255, 0, 0)
 
     def set_pen_color(self, c):
         self.pen_color = QtGui.QColor(c)
-
-    def drawCell(self, blocSize, gridResolution, i, j, r=0,g=0,b=0, alpha=255):
-        painter = QtGui.QPainter(self.pixmap())
-        pen = QtGui.QPen()
-        pen.setWidth(int(blocSize))
-        pen.setColor(QtGui.QColor(int(r), int(g), int(b), int(alpha)))
-        painter.setPen(pen)
-        painter.drawPoint(int(blocSize*(i+0.5)), int(blocSize*(gridResolution-1 - j+0.5)))
-        painter.end()
-        self.update()
 
     def clean(self):
         pixmap = QtGui.QPixmap(self.size,  self.size)

@@ -8,13 +8,13 @@ import json
 import fluid_layer
 
 class Fluid():
-    def __init__(self):
+    def __init__(self, layer_size=800):
         
         self.size = 20
         self.u = tf.zeros([self.size*self.size], dtype=tf.float32)
         self.v = tf.zeros([self.size*self.size], dtype=tf.float32)
-        self.d = tf.ones([self.size*self.size], dtype=tf.float32)
-        self.layer = fluid_layer.FluidLayer(self.size)
+        self.d = tf.zeros([self.size*self.size], dtype=tf.float32)
+        self.layer = fluid_layer.FluidLayer(layer_size)
 
         # Training settings
         self.learning_rate = 1.5
@@ -37,6 +37,12 @@ class Fluid():
         # Intermediate variables
         self.coordsX = tf.zeros([self.size*self.size], dtype=tf.float32)
         self.coordsY = tf.zeros([self.size*self.size], dtype=tf.float32)
+
+        # Simulation folder
+        self.filename = "fluid_simulation"
+
+        # Initial drawing
+        self.drawDensity(self.d)
 
     def setCoords(self):
         coordsX = np.zeros(self.size*self.size)
@@ -118,12 +124,14 @@ class Fluid():
                 "d": simulated_d
             },
             f, indent=4)
+            print(file)
 
     def drawDensity(self, density):
         r= 255
         g= 0
         b= 0
         blocSize = int(self.layer.size/self.size)
+        self.layer.clean()
         for i in range(self.size):
             for j in range(self.size):
                 self.layer.drawCell(blocSize, self.size, i,j, r,g,b,int(255*density[i+j*self.size]))

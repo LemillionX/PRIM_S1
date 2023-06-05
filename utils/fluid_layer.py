@@ -18,7 +18,6 @@ class FluidLayer(QtWidgets.QLabel):
         self.pen_color = QtGui.QColor('#000000')
         self.curves = []
 
-
     def set_pen_color(self, c):
         self.pen_color = QtGui.QColor(c)
 

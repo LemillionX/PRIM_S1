@@ -9,19 +9,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.fluidCanvas = canvas.Canvas()
-
         w = QtWidgets.QWidget()
         l = QtWidgets.QHBoxLayout()
         w.setLayout(l)
-        l.addWidget(self.fluidCanvas)
 
-        palette = QtWidgets.QHBoxLayout()
-        l.addLayout(palette)
+        self.menu = Menu(self)
 
-        menu = Menu()
-        menu.setCanvas(self.fluidCanvas)
-        l.addLayout(menu)
+        self.stacked_layout = QtWidgets.QStackedLayout()
+        self.stacked_layout.addWidget(self.menu.fluid.layer)
+        self.stacked_layout.addWidget(self.menu.canvas)
+        l.addLayout(self.stacked_layout)
+
+
+        l.addLayout(self.menu)
 
 
         self.setCentralWidget(w)

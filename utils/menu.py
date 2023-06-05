@@ -1,17 +1,21 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QLocale
+import os
 import callbacksUI as callback
 import canvas
 import numpy as np
 import fluid
+import tensorflow as tf
 
 class Menu(QtWidgets.QVBoxLayout):
 
-    def __init__(self):
+    def __init__(self, window):
         super().__init__()
 
+        self.window = window
         self.canvas = canvas.Canvas()
-        self.fluid = fluid.Fluid()
+        self.canvas.mode = ""
+        self.fluid = fluid.Fluid(layer_size=self.canvas.size)
 
         # General Widgets
         self.resolutionText = QtWidgets.QLabel()
@@ -55,10 +59,6 @@ class Menu(QtWidgets.QVBoxLayout):
 
 
         # Fluid Settings Layout
-        self.testButton = QtWidgets.QPushButton('Test Button')
-        self.testButton.clicked.connect(self.test)
-        self.fluidSimulationLayout.addWidget(self.testButton)
-
         self.frames = QtWidgets.QLineEdit(str(self.fluid.Nframes))
         self.frames.setValidator(QtGui.QIntValidator())
         self.frames.setMaxLength(4)
@@ -86,6 +86,14 @@ class Menu(QtWidgets.QVBoxLayout):
         self.sourceDuration.textChanged.connect(self.setSourceDuration)
         self.fluidSimulationLayout.addRow("Source Frames", self.sourceDuration)
 
+        self.testButton = QtWidgets.QPushButton('Bake Simulation')
+        self.testButton.clicked.connect(self.test)
+        self.fluidSimulationLayout.addWidget(self.testButton)
+
+        self.bakeFile = QtWidgets.QLineEdit(self.fluid.filename)
+        self.bakeFile.textChanged.connect(self.setBakeFile)
+        self.fluidSimulationLayout.addRow("File", self.bakeFile)
+
         # Stack Layouts
         self.stacked_layout = QtWidgets.QStackedLayout()
         self.stacked_layout.addWidget(self.fluid_simulation_container)
@@ -94,6 +102,10 @@ class Menu(QtWidgets.QVBoxLayout):
 
     def setLayout(self, index):
         self.stacked_layout.setCurrentIndex(index)
+        self.window.stacked_layout.setCurrentIndex(index)
+        if index == 0:
+            self.fluid.d = tf.convert_to_tensor(self.canvas.initialDensity, dtype=tf.float32)
+            self.fluid.drawDensity(self.fluid.d)
 
         # If we are not drawing constraint
         if index != 1:
@@ -101,6 +113,9 @@ class Menu(QtWidgets.QVBoxLayout):
         else:
             self.combobox.setCurrentText("trajectory")
             self.canvas.mode = "trajectory"
+
+    def setBakeFile(self, filename):
+        self.fluid.filename = filename
 
     def setFrames(self, frames):
         self.fluid.Nframes = int(frames)
@@ -165,4 +180,9 @@ class Menu(QtWidgets.QVBoxLayout):
             self.canvas.hideGrid()
 
     def test(self):
-        print("Hello World !")
+        print("Baking Simulation")
+        lu, p, velocity_diff_LU, velocity_diff_P, scalar_diffuse_LU, scalar_diffuse_P = self.fluid.buildMatrices()
+        file = "../bake/{filename}.json".format(filename=self.fluid.filename)
+        self.fluid.bakeSimulation(lu, p, velocity_diff_LU, velocity_diff_P, scalar_diffuse_LU, scalar_diffuse_P, file)
+
+

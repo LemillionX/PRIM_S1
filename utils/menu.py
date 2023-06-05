@@ -1,6 +1,5 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QLocale
-import os
 import callbacksUI as callback
 import canvas
 import numpy as np
@@ -86,13 +85,22 @@ class Menu(QtWidgets.QVBoxLayout):
         self.sourceDuration.textChanged.connect(self.setSourceDuration)
         self.fluidSimulationLayout.addRow("Source Frames", self.sourceDuration)
 
-        self.testButton = QtWidgets.QPushButton('Bake Simulation')
-        self.testButton.clicked.connect(self.test)
-        self.fluidSimulationLayout.addWidget(self.testButton)
-
         self.bakeFile = QtWidgets.QLineEdit(self.fluid.filename)
         self.bakeFile.textChanged.connect(self.setBakeFile)
-        self.fluidSimulationLayout.addRow("File", self.bakeFile)
+        self.fluidSimulationLayout.addRow("File to bake", self.bakeFile)
+
+        self.bakeButton = QtWidgets.QPushButton('Bake Simulation')
+        self.bakeButton.clicked.connect(self.bake)
+        self.fluidSimulationLayout.addWidget(self.bakeButton)
+
+        self.playFile = QtWidgets.QLineEdit()
+        self.playFile.textChanged.connect(self.setFileToPlay)
+        self.fluidSimulationLayout.addRow("File to play", self.playFile)     
+
+        self.playButton = QtWidgets.QPushButton('Play')
+        self.playButton.clicked.connect(self.play)
+        self.fluidSimulationLayout.addWidget(self.playButton)
+
 
         # Stack Layouts
         self.stacked_layout = QtWidgets.QStackedLayout()
@@ -105,7 +113,7 @@ class Menu(QtWidgets.QVBoxLayout):
         self.window.stacked_layout.setCurrentIndex(index)
         if index == 0:
             self.fluid.d = tf.convert_to_tensor(self.canvas.initialDensity, dtype=tf.float32)
-            self.fluid.drawDensity(self.fluid.d)
+            self.fluid.layer.densities = [self.fluid.d.numpy()]
 
         # If we are not drawing constraint
         if index != 1:
@@ -116,6 +124,12 @@ class Menu(QtWidgets.QVBoxLayout):
 
     def setBakeFile(self, filename):
         self.fluid.filename = filename
+
+    def setFileToPlay(self, text):
+        if len(text.strip()) > 0:
+            self.fluid.file_to_play = text
+        else:
+            self.fluid.file_to_play = None
 
     def setFrames(self, frames):
         self.fluid.Nframes = int(frames)
@@ -133,7 +147,7 @@ class Menu(QtWidgets.QVBoxLayout):
             self.fluid.useSource = False
     
     def setSourceDuration(self, frame):
-        self.fluid.sourceDuration = int(frame)
+        self.fluid.sourceDuration = int(frame+1)
 
     def setCanvas(self, canva):
         self.canvas = canva
@@ -179,10 +193,14 @@ class Menu(QtWidgets.QVBoxLayout):
         else:
             self.canvas.hideGrid()
 
-    def test(self):
+    def bake(self):
         print("Baking Simulation")
         lu, p, velocity_diff_LU, velocity_diff_P, scalar_diffuse_LU, scalar_diffuse_P = self.fluid.buildMatrices()
         file = "../bake/{filename}.json".format(filename=self.fluid.filename)
         self.fluid.bakeSimulation(lu, p, velocity_diff_LU, velocity_diff_P, scalar_diffuse_LU, scalar_diffuse_P, file)
+        self.fluid.file_to_play = self.fluid.filename
+        self.playFile.setText(self.fluid.file_to_play)
 
-
+    def play(self):
+        print("Play Simulation...")
+        self.fluid.playDensity("../bake/")

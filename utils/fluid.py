@@ -1,11 +1,14 @@
 import sys
 sys.path.insert(0, '../src')
+from PyQt5 import QtCore, QtGui, QtWidgets, uic
+from PyQt5.QtCore import Qt
 import tensorflow as tf
 import numpy as np
 import tf_solver_staggered as slv
 from tqdm import tqdm
 import json
 import fluid_layer
+import time
 
 class Fluid():
     def __init__(self, layer_size=800):
@@ -14,7 +17,8 @@ class Fluid():
         self.u = tf.zeros([self.size*self.size], dtype=tf.float32)
         self.v = tf.zeros([self.size*self.size], dtype=tf.float32)
         self.d = tf.zeros([self.size*self.size], dtype=tf.float32)
-        self.layer = fluid_layer.FluidLayer(layer_size)
+        self.layer = fluid_layer.FluidLayer(layer_size, self.size)
+        self.layer.timer.timeout.connect(self.update_frame)
 
         # Training settings
         self.learning_rate = 1.5
@@ -38,8 +42,9 @@ class Fluid():
         self.coordsX = tf.zeros([self.size*self.size], dtype=tf.float32)
         self.coordsY = tf.zeros([self.size*self.size], dtype=tf.float32)
 
-        # Simulation folder
+        # Simulation folders
         self.filename = "fluid_simulation"
+        self.file_to_play = None
 
         # Initial drawing
         self.drawDensity(self.d)
@@ -61,6 +66,7 @@ class Fluid():
         self.d = tf.zeros([self.size*self.size], dtype=tf.float32)
         self.h = (self.grid_max - self.grid_min)/self.size
         self.setCoords()
+        self.layer.grid_size = size
 
     def setDensity(self, density):
         self.d = tf.convert_to_tensor(density, dtype=tf.float32)
@@ -93,11 +99,12 @@ class Fluid():
 
         self.setSource()
 
-        pbar = tqdm(range(1, self.Nframes), desc="Baking simulation...")
+        pbar = tqdm(range(1, self.Nframes+1), desc="Baking simulation...")
         for t in pbar:
+            f_u, f_v = slv.buoyancyForce(d, self.size, self.size, self.coordsX, self.coordsY, self.grid_min, self.h)
             u,v,d = slv.update(u, v, d, self.size, self.size, self.coordsX, self.coordsY, self.dt, self.grid_min, self.h, lu, p,
                                self.dissipation_rate, velocity_diff_LU, velocity_diff_P, self.viscosity, scalar_diffuse_LU, scalar_diffuse_P, self.diffusion_coeff,
-                               boundary_func=self.boundary, source=self.source, t=t)
+                               boundary_func=self.boundary, source=self.source, t=t, f_u=f_u, f_v=f_v)
             simulated_u.append(u.numpy().tolist())
             simulated_v.append(v.numpy().tolist())
             simulated_d.append(d.numpy().tolist())
@@ -106,7 +113,7 @@ class Fluid():
             if self.source is not None:
                 self.source["indices"] = self.source["indices"].tolist()
             json.dump({
-                "size":self.size,
+                "GRID_SIZE":self.size,
                 "N_FRAMES": self.Nframes,
                 "TIMESTEP": self.dt,
                 "GRID_MIN": self.grid_min,
@@ -117,6 +124,7 @@ class Fluid():
                 "VISCOSITY": self.viscosity,
                 "BOUNDARY": self.boundary,
                 "SOURCE": self.source,
+                "SOURCE_DURATION": self.sourceDuration,
                 "LEARNING_RATE": self.learning_rate,
                 "WEIGHT": self.weight,
                 "u": simulated_u,
@@ -135,3 +143,35 @@ class Fluid():
         for i in range(self.size):
             for j in range(self.size):
                 self.layer.drawCell(blocSize, self.size, i,j, r,g,b,int(255*density[i+j*self.size]))
+
+    def loadSettings(self, settings):
+        self.Nframes = settings["N_FRAMES"]
+        self.dt = settings["TIMESTEP"]
+        self.grid_min = settings["GRID_MIN"]
+        self.grid_max = settings["GRID_MAX"]
+        self.h = settings["h"]
+        self.diffusion_coeff = settings["DIFFUSION_COEFF"]
+        self.dissipation_rate = settings["DISSIPATION_RATE"]
+        self.viscosity = settings["VISCOSITY"]
+        self.boundary = settings["BOUNDARY"]
+        self.sourceDuration = settings["SOURCE_DURATION"]
+        self.source = settings["SOURCE"]
+        self.learning_rate = settings["LEARNING_RATE"]
+        self.weight = settings["WEIGHT"]
+
+    def playDensity(self, dir_path):
+        if self.file_to_play is not None:
+            with open(dir_path+self.file_to_play+".json", 'r') as file:
+                data = json.load(file)
+                self.loadSettings(data)
+                self.layer.densities = data["d"]
+            self.layer.update()
+            self.layer.timer.start(self.layer.interval)
+
+    def update_frame(self):
+        self.layer.current_frame += 1
+        if self.layer.current_frame+1 >= len(self.layer.densities):
+            self.layer.current_frame = 0
+            self.layer.timer.stop()
+            print("Done !")
+        self.layer.update()

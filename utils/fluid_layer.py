@@ -1,12 +1,13 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 import numpy as np
 
 class FluidLayer(QtWidgets.QLabel):
 
-    def __init__(self, size:int):
+    def __init__(self, size:int, grid_size:int):
         super().__init__()
         self.size = size
+        self.grid_size = grid_size
 
         # Initialise the pixel map
         pixmap = QtGui.QPixmap(self.size,  self.size)
@@ -16,7 +17,11 @@ class FluidLayer(QtWidgets.QLabel):
         # Drawing attributes
         self.last_x, self.last_y = None, None
         self.pen_color = QtGui.QColor('#000000')
-        self.curves = []
+        self.densities = None
+        self.current_frame = 0
+        self.timer = QTimer(self)
+        self.interval = 10
+        self.r, self.g, self.b = (255, 0, 0)
 
     def set_pen_color(self, c):
         self.pen_color = QtGui.QColor(c)
@@ -35,3 +40,19 @@ class FluidLayer(QtWidgets.QLabel):
         pixmap = QtGui.QPixmap(self.size,  self.size)
         pixmap.fill(Qt.white)
         self.setPixmap(pixmap)
+
+    def paintEvent(self, e: QtGui.QPaintEvent):
+        painter = QtGui.QPainter(self)
+        painter.fillRect(e.rect(), Qt.white)
+
+        if self.densities is not None:
+            density = self.densities[self.current_frame]
+            blocSize = int(self.size/self.grid_size)
+            pen = QtGui.QPen()
+            pen.setWidth(blocSize)
+            
+            for i in range(self.grid_size):
+                for j in range(self.grid_size):
+                    pen.setColor(QtGui.QColor(self.r, self.g, self.b, int(255*density[i+j*self.grid_size])))
+                    painter.setPen(pen)
+                    painter.drawPoint(int(blocSize*(i+0.5)), int(blocSize*(self.grid_size-1 - j+0.5)))

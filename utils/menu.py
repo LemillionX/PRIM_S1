@@ -1,8 +1,9 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QLocale
 import callbacksUI as callback
 import canvas
 import numpy as np
+import fluid
 
 class Menu(QtWidgets.QVBoxLayout):
 
@@ -10,6 +11,7 @@ class Menu(QtWidgets.QVBoxLayout):
         super().__init__()
 
         self.canvas = canvas.Canvas()
+        self.fluid = fluid.Fluid()
 
         # General Widgets
         self.resolutionText = QtWidgets.QLabel()
@@ -30,13 +32,13 @@ class Menu(QtWidgets.QVBoxLayout):
         # Different layouts
         self.fluid_constraint_container = QtWidgets.QWidget()
         self.fluid_simulation_container = QtWidgets.QWidget()
-        self.fluidConstraintsLayout = QtWidgets.QVBoxLayout(self.fluid_constraint_container)
-        self.fluidSimulationLayout = QtWidgets.QVBoxLayout(self.fluid_simulation_container)
+        self.fluidConstraintsLayout = QtWidgets.QFormLayout(self.fluid_constraint_container)
+        self.fluidSimulationLayout = QtWidgets.QFormLayout(self.fluid_simulation_container)
 
         # Fluid Constraints Layout
         self.combobox = QtWidgets.QComboBox()
         self.combobox.addItems(['trajectory', 'initial_density', 'target_density'])
-        self.fluidConstraintsLayout.addWidget(self.combobox)
+        self.fluidConstraintsLayout.addRow("Edit :", self.combobox)
         self.combobox.currentTextChanged.connect(self.setMode)
 
         self.saveButton = QtWidgets.QPushButton('Save Config')
@@ -57,6 +59,33 @@ class Menu(QtWidgets.QVBoxLayout):
         self.testButton.clicked.connect(self.test)
         self.fluidSimulationLayout.addWidget(self.testButton)
 
+        self.frames = QtWidgets.QLineEdit(str(self.fluid.Nframes))
+        self.frames.setValidator(QtGui.QIntValidator())
+        self.frames.setMaxLength(4)
+        self.frames.textChanged.connect(self.setFrames)
+        self.fluidSimulationLayout.addRow("Frames", self.frames)
+
+        self.dt = QtWidgets.QLineEdit(str(self.fluid.dt))
+        dt_validator = QtGui.QDoubleValidator(0.001, 1.000, 3, notation=QtGui.QDoubleValidator.StandardNotation)
+        dt_validator.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
+        self.dt.setValidator(dt_validator)
+        self.dt.textChanged.connect(self.setTimestep)
+        self.fluidSimulationLayout.addRow("Timestep", self.dt)
+
+        self.boundary = QtWidgets.QComboBox()
+        self.boundary.addItems([ 'dirichlet', 'neumann'])
+        self.boundary.currentTextChanged.connect(self.setBoundary)
+        self.fluidSimulationLayout.addRow("Boundary Conditions", self.boundary)
+
+        self.source = QtWidgets.QCheckBox('Add Source')
+        self.source.stateChanged.connect(self.setSource)
+        self.fluidSimulationLayout.addWidget(self.source)
+        self.sourceDuration = QtWidgets.QLineEdit(str(self.fluid.sourceDuration))
+        self.sourceDuration.setValidator(QtGui.QIntValidator())
+        self.sourceDuration.setMaxLength(4)
+        self.sourceDuration.textChanged.connect(self.setSourceDuration)
+        self.fluidSimulationLayout.addRow("Source Frames", self.sourceDuration)
+
         # Stack Layouts
         self.stacked_layout = QtWidgets.QStackedLayout()
         self.stacked_layout.addWidget(self.fluid_simulation_container)
@@ -64,9 +93,32 @@ class Menu(QtWidgets.QVBoxLayout):
         self.addLayout(self.stacked_layout)
 
     def setLayout(self, index):
-        print("Changing to Layout #"+str(index))
         self.stacked_layout.setCurrentIndex(index)
 
+        # If we are not drawing constraint
+        if index != 1:
+            self.canvas.mode = ""
+        else:
+            self.combobox.setCurrentText("trajectory")
+            self.canvas.mode = "trajectory"
+
+    def setFrames(self, frames):
+        self.fluid.Nframes = int(frames)
+
+    def setTimestep(self, dt):
+        self.fluid.dt = float(dt)
+
+    def setBoundary(self, text):
+        self.fluid.boundary = text    
+
+    def setSource(self, state):
+        if state == QtCore.Qt.Checked:
+            self.fluid.useSource = True
+        else:
+            self.fluid.useSource = False
+    
+    def setSourceDuration(self, frame):
+        self.fluid.sourceDuration = int(frame)
 
     def setCanvas(self, canva):
         self.canvas = canva
@@ -88,6 +140,7 @@ class Menu(QtWidgets.QVBoxLayout):
         data = callback.loadFromJSON()
         self.canvas.clean()
         self.canvas.setGridResolution(int(np.sqrt(len(data["init_density"]))))
+        self.fluid.setSize(int(np.sqrt(len(data["init_density"]))))
         self.canvas.hideGrid()
         if self.drawGridButton.isChecked():
             self.canvas.drawGrid()
@@ -95,6 +148,7 @@ class Menu(QtWidgets.QVBoxLayout):
 
         self.canvas.setInitialDensity(data["init_density"])
         self.canvas.setTargetDensity(data["target_density"])
+        self.fluid.setDensity(data["init_density"])
         if "curves" in data:
             self.canvas.setCurves(data["curves"])
 

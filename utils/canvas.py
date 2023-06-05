@@ -97,7 +97,7 @@ class Canvas(QtWidgets.QLabel):
         painter = QtGui.QPainter(self.pixmap())
         pen = QtGui.QPen()
         pen.setWidth(int(self.blocSize))
-        pen.setColor(QtGui.QColor(r,g,b,alpha))
+        pen.setColor(QtGui.QColor(int(r), int(g), int(b), int(alpha)))
         painter.setPen(pen)
         painter.drawPoint(int(self.blocSize*(i+0.5)), int(self.blocSize*(self.gridResolution-1 - j+0.5)))
         painter.end()

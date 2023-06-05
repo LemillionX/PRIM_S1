@@ -10,6 +10,7 @@ The code are in the `src` folder, and the results of simulations will be stored 
 <li> Merge UI and fluid constraint
 <li> Merge UI and animation layers
 <li> Change the speed of the trajectory
+<li> Import image as density
 
 ## Progress
 ### Week 29/03

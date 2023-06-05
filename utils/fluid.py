@@ -136,8 +136,7 @@ class Fluid():
 
     def loadSettings(self, settings):
         self.Nframes = settings["N_FRAMES"]
-        self.size = settings["SIZE"]
-        self.layer.grid_size = self.size
+        self.setSize(settings["GRID_SIZE"])
         self.dt = settings["TIMESTEP"]
         self.grid_min = settings["GRID_MIN"]
         self.grid_max = settings["GRID_MAX"]

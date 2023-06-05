@@ -25,6 +25,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
         self.setCentralWidget(w)
+        self.setWindowTitle("PRIM - User-guided smoke simulation")
 
 
 

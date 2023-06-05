@@ -112,6 +112,7 @@ class Menu(QtWidgets.QVBoxLayout):
         self.stacked_layout.setCurrentIndex(index)
         self.window.stacked_layout.setCurrentIndex(index)
         if index == 0:
+            self.fluid.setSize(self.canvas.gridResolution)
             self.fluid.d = tf.convert_to_tensor(self.canvas.initialDensity, dtype=tf.float32)
             self.fluid.layer.densities = [self.fluid.d.numpy()]
 
@@ -132,10 +133,16 @@ class Menu(QtWidgets.QVBoxLayout):
             self.fluid.file_to_play = None
 
     def setFrames(self, frames):
-        self.fluid.Nframes = int(frames)
+        if len(frames.strip()) > 0:
+            self.fluid.Nframes = int(frames)
+        else:
+            self.fluid.Nframes = 0
 
     def setTimestep(self, dt):
-        self.fluid.dt = float(dt)
+        if len(dt.strip()) > 0:
+            self.fluid.dt = float(dt)
+        else:
+            self.fluid.dt = 0.001
 
     def setBoundary(self, text):
         self.fluid.boundary = text    
@@ -147,7 +154,10 @@ class Menu(QtWidgets.QVBoxLayout):
             self.fluid.useSource = False
     
     def setSourceDuration(self, frame):
-        self.fluid.sourceDuration = int(frame)+1
+        if len(frame.strip()) > 0:
+            self.fluid.sourceDuration = int(frame)+1
+        else:
+            self.fluid.sourceDuration = 0
 
     def setCanvas(self, canva):
         self.canvas = canva
@@ -167,19 +177,20 @@ class Menu(QtWidgets.QVBoxLayout):
     def load_config(self):
         print("Load file")
         data = callback.loadFromJSON()
-        self.canvas.clean()
-        self.canvas.setGridResolution(int(np.sqrt(len(data["init_density"]))))
-        self.fluid.setSize(int(np.sqrt(len(data["init_density"]))))
-        self.canvas.hideGrid()
-        if self.drawGridButton.isChecked():
-            self.canvas.drawGrid()
-        self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
+        if data is not None:
+            self.canvas.clean()
+            self.canvas.setGridResolution(int(np.sqrt(len(data["init_density"]))))
+            self.fluid.setSize(int(np.sqrt(len(data["init_density"]))))
+            self.canvas.hideGrid()
+            if self.drawGridButton.isChecked():
+                self.canvas.drawGrid()
+            self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
 
-        self.canvas.setInitialDensity(data["init_density"])
-        self.canvas.setTargetDensity(data["target_density"])
-        self.fluid.setDensity(data["init_density"])
-        if "curves" in data:
-            self.canvas.setCurves(data["curves"])
+            self.canvas.setInitialDensity(data["init_density"])
+            self.canvas.setTargetDensity(data["target_density"])
+            self.fluid.setDensity(data["init_density"])
+            if "curves" in data:
+                self.canvas.setCurves(data["curves"])
 
     def reset_config(self):
         print("Reset trajectory")

@@ -396,5 +396,22 @@ if len(sys.argv) > 1:
         # a = tf.concat(midVel, 0)
         # print("a = ", a)
 
+    if sys.argv[1] == "bake":
+        class NewlineSeparatorEncoder(json.JSONEncoder):
+            def item_separator(self, _, _2):
+                return ", "
+            
+        file = "../tests/bake.json"
+        size = 5
+        u = np.ones(size)
+        v = np.ones(size) 
+        Nframes = 10
+        simulation_u = []
+        simulation_v = []
+        for i in range(Nframes):   
+            simulation_u.append( (i*u).tolist())
+            simulation_v.append( (i*v).tolist())
+        with open(file, 'w') as f:
+            json.dump({"Nframes": Nframes, "u":simulation_u, "v":simulation_v}, f, indent=4, separators=(',', ': '))
 
 

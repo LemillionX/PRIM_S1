@@ -207,9 +207,9 @@ class Menu(QtWidgets.QVBoxLayout):
     
     def setSourceDuration(self, frame):
         if len(frame.strip()) > 0:
-            self.fluid.sourceDuration = int(frame)+1
+            self.fluid.sourceDuration = int(frame)
         else:
-            self.fluid.sourceDuration = 0
+            self.fluid.sourceDuration = 1
 
     def setCanvas(self, canva):
         self.canvas = canva
@@ -250,6 +250,13 @@ class Menu(QtWidgets.QVBoxLayout):
         self.canvas.setInitialDensity(self.canvas.initialDensity)
         self.canvas.setTargetDensity(self.canvas.targetDensity)
 
+    def updateSettingsFields(self):
+        self.resolutionText.setText(str(self.fluid.size))
+        self.frames.setText(str(self.fluid.Nframes))
+        self.dt.setText(str(self.fluid.dt))
+        self.boundary.setCurrentText(self.fluid.boundary)
+        self.sourceDuration.setText(str(self.fluid.sourceDuration))
+
     def toggleGrid(self, state):
         if state == QtCore.Qt.Checked:
             self.canvas.drawGrid()
@@ -271,6 +278,7 @@ class Menu(QtWidgets.QVBoxLayout):
     def play(self):
         print("Play Simulation...")
         self.fluid.playDensity("../bake/")
+        self.updateSettingsFields()
 
     def train(self):
         print("Optimizing under constraints...")

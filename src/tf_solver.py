@@ -441,7 +441,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     _u, _v = project(_u, _v, _sizeX, _sizeY, _mat, _h, boundary_func)
 
     ## Sstep
-    if (source is not None) and (t < source["time"]) :
+    if (source is not None) and (t <= source["time"]) :
         _s = addSource(_s, source["value"], source["indices"])
     # advection step
     _s = advectCentered(_s, _u, _v, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h)

@@ -126,6 +126,10 @@ class Menu(QtWidgets.QVBoxLayout):
         self.playFile.textChanged.connect(self.setFileToPlay)
         self.fluidSimulationLayout.addRow("File to play", self.playFile)     
 
+        self.colorButton = QtWidgets.QPushButton('Change Smoke color')
+        self.colorButton.clicked.connect(self.setDensityColor)
+        self.fluidSimulationLayout.addWidget(self.colorButton)
+
         self.playButton = QtWidgets.QPushButton('Play')
         self.playButton.clicked.connect(self.play)
         self.fluidSimulationLayout.addWidget(self.playButton)
@@ -183,6 +187,15 @@ class Menu(QtWidgets.QVBoxLayout):
             resolution = 10
         self.canvas.setGridResolution(resolution, self.drawGridButton.isChecked())
         self.fluid.setSize(resolution)
+
+    def setDensityColor(self):
+        color_dialog = QtWidgets.QColorDialog()
+        color_dialog.currentColorChanged.connect(self.fluid.layer.setRGB)
+        color_dialog.exec()
+        # color = QtWidgets.QColorDialog.getColor()
+        # if color.isValid():
+        #     self.fluid.layer.r, self.fluid.layer.g, self.fluid.layer.b, _ = color.getRgb()
+        # self.fluid.layer.update()
 
     def setFrames(self, frames):
         if len(frames.strip()) > 0:

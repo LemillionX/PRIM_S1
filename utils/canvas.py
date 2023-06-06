@@ -61,7 +61,6 @@ class Canvas(QtWidgets.QLabel):
     def mouseReleaseEvent(self, e):
         self.last_x = None
         self.last_y = None
-        # print('\n'.join("Line #"+str(idx)+": "+str(element) for idx, element in enumerate(self.curves)))
 
     def mousePressEvent(self, e):
         if self.mode == "initial_density":

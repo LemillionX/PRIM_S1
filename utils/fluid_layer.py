@@ -16,7 +16,6 @@ class FluidLayer(QtWidgets.QLabel):
 
         # Drawing attributes
         self.last_x, self.last_y = None, None
-        self.pen_color = QtGui.QColor('#000000')
         self.densities = None
         self.current_frame = 0
         self.timer = QTimer(self)
@@ -24,8 +23,9 @@ class FluidLayer(QtWidgets.QLabel):
         self.drawGrid = False
         self.r, self.g, self.b = (255, 0, 0)
 
-    def set_pen_color(self, c):
-        self.pen_color = QtGui.QColor(c)
+    def setRGB(self, color:QtGui.QColor):
+        self.r, self.g, self.b, _ = color.getRgb()
+        self.update()
 
     def clean(self):
         pixmap = QtGui.QPixmap(self.size,  self.size)

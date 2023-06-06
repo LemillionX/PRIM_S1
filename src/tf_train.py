@@ -140,6 +140,78 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     viz.frames2gif(d_path, d_path+".gif", fps)
     return trained_vel_x, trained_vel_y
 
+def trainUI(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, constraint=None, learning_rate=1.1):
+    sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
+    sizeY = int(np.sqrt(len(_target)))           # number of elements in the y-axis
+    assert (sizeX == sizeY), "Dimensions on axis are different !"
+
+    timestep = _fluidSettings["dt"]
+    grid_min = _fluidSettings["grid_min"]
+    grid_max = _fluidSettings["grid_max"]
+    h = (grid_max-grid_min)/sizeX
+    k_diff = _fluidSettings["diffusion_coeff"]
+    alpha = _fluidSettings["dissipation_rate"]
+    visc = _fluidSettings["viscosity"]
+    _boundary = _fluidSettings["boundary"]
+    source = _fluidSettings["source"]
+    keyframes = []
+    keyidx = []
+    keyvalues = []
+    key_weights = []
+    if constraint is not None:
+        keyframes = constraint["keyframes"]
+        keyidx = constraint["indices"]
+        keyvalues = tf.reshape(tf.convert_to_tensor(constraint["values"], dtype=tf.float32), (-1, 2*len(constraint["values"][0][0])))
+        key_weights = constraint["weights"]
+
+    ## Pre-build matrices
+    laplace_mat_LU, laplace_mat_P = slv.build_laplacian_matrix(sizeX, sizeY, 1/( h*h), -4/( h*h), _boundary)
+    velocity_diff_LU, velocity_diff_P = slv.build_laplacian_matrix(sizeX, sizeY, -visc*timestep/( h*h), 1+4*visc*timestep/( h*h))
+    scalar_diffuse_LU, scalar_diffuse_P = slv.build_laplacian_matrix(sizeX, sizeY, -k_diff*timestep/( h*h), 1+4*k_diff*timestep/( h*h) )
+
+    ## Converting variables to tensors
+    target_density = tf.convert_to_tensor(_target, dtype=tf.float32)
+    velocity_field_x, velocity_field_y = tf.convert_to_tensor(_u_init, dtype=tf.float32),tf.convert_to_tensor(_v_init, dtype=tf.float32)
+    density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
+    trained_vel_x, trained_vel_y =  slv.project(velocity_field_x, velocity_field_y, sizeX, sizeY, laplace_mat_LU, laplace_mat_P, h, _boundary) 
+    dt = tf.convert_to_tensor(timestep, dtype=tf.float32)
+    coords_X = tf.convert_to_tensor(_coordsX, dtype=tf.float32)
+    coords_Y = tf.convert_to_tensor(_coordsY, dtype=tf.float32)
+
+    ## Initial guess
+    loss, d_loss, v_loss = loss_quadratic(density_field, target_density)
+    with tf.GradientTape() as tape:
+        velocity_field_x = tf.Variable(trained_vel_x)
+        velocity_field_y = tf.Variable(trained_vel_y)
+        _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, keyframes, keyidx, _boundary, source, leave=False)
+        loss,  d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
+    grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
+    print("[step 0] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(l_rate=0, loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad[:2]).numpy()))
+
+    ## Optimisation
+    count = 0
+    while (count < _max_iter and loss > 0.1 and tf.norm(grad[:2]).numpy() > 1e-04):
+        l_rate = tf.constant(learning_rate, dtype = tf.float32)
+        density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
+        trained_vel_x = trained_vel_x - l_rate*grad[0]
+        trained_vel_y = trained_vel_y - l_rate*grad[1]
+        with tf.GradientTape() as tape:
+            velocity_field_x = tf.Variable(trained_vel_x)
+            velocity_field_y = tf.Variable(trained_vel_y)
+            velocity_field_x, velocity_field_y = slv.project(velocity_field_x, velocity_field_y, sizeX, sizeY, laplace_mat_LU, laplace_mat_P, h, _boundary) 
+            _,_, density_field, midVel = slv.simulateConstrained(_nFrames, velocity_field_x, velocity_field_y, density_field, sizeX, sizeY, coords_X, coords_Y, dt, grid_min, h, laplace_mat_LU, laplace_mat_P, alpha, velocity_diff_LU, velocity_diff_P, visc, scalar_diffuse_LU, scalar_diffuse_P, k_diff, keyframes, keyidx, _boundary, source, leave=False)
+            loss, d_loss, v_loss = loss_quadratic(density_field, target_density, midVel, keyvalues, key_weights)
+        count += 1
+        grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
+        if (count < 3) or (count%10 == 0):
+            print("[step {count}] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad[:2]).numpy()))
+
+    if (count < _max_iter and count > 0):
+        print("[step {count}] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad[:2]).numpy()))
+
+    return trained_vel_x, trained_vel_y
+
+
 
 def train_scalar_field(_max_iter, _d_init, _target, _nFrames, a_init, _fluidSettings, _coordsX, _coordsY, _boundary, filename, constraint=None, learning_rate=1.1, debug=False):
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis

@@ -192,10 +192,6 @@ class Menu(QtWidgets.QVBoxLayout):
         color_dialog = QtWidgets.QColorDialog()
         color_dialog.currentColorChanged.connect(self.fluid.layer.setRGB)
         color_dialog.exec()
-        # color = QtWidgets.QColorDialog.getColor()
-        # if color.isValid():
-        #     self.fluid.layer.r, self.fluid.layer.g, self.fluid.layer.b, _ = color.getRgb()
-        # self.fluid.layer.update()
 
     def setFrames(self, frames):
         if len(frames.strip()) > 0:

@@ -39,13 +39,17 @@ class FluidLayer(QtWidgets.QLabel):
         blocSize = int(self.size/self.grid_size)
 
         if self.densities is not None:
-            density = self.densities[self.current_frame]
+            d0 = np.linalg.norm(np.array(self.densities[0]))
+            density = np.array(self.densities[self.current_frame])
+            d = np.linalg.norm(density)
+            if d > 0 and d < d0:
+                density *= d0/d
             pen = QtGui.QPen()
             pen.setWidth(blocSize)
             
             for i in range(self.grid_size):
                 for j in range(self.grid_size):
-                    pen.setColor(QtGui.QColor(self.r, self.g, self.b, int(255*density[i+j*self.grid_size])))
+                    pen.setColor(QtGui.QColor(self.r, self.g, self.b, int(255*min(density[i+j*self.grid_size],1))))
                     painter.setPen(pen)
                     painter.drawPoint(int(blocSize*(i+0.5)), int(blocSize*(self.grid_size-1 - j+0.5)))
 

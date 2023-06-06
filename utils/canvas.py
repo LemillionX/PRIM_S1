@@ -84,7 +84,11 @@ class Canvas(QtWidgets.QLabel):
 
     def drawGrid(self):
         painter = QtGui.QPainter(self.grid.pixmap())
-        for i in range(0, self.gridResolution+1):
+        pen = QtGui.QPen()
+        pen.setWidth(1)
+        pen.setColor(Qt.gray)
+        painter.setPen(pen)
+        for i in range(self.gridResolution+1):
             painter.drawLine(int(self.blocSize*i), self.size, int(self.blocSize*i),0)
             painter.drawLine(0, int(self.blocSize*i), self.size, int(self.blocSize*i))
         painter.end()

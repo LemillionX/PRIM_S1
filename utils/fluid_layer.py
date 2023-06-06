@@ -21,6 +21,7 @@ class FluidLayer(QtWidgets.QLabel):
         self.current_frame = 0
         self.timer = QTimer(self)
         self.fps = 30
+        self.drawGrid = False
         self.r, self.g, self.b = (255, 0, 0)
 
     def set_pen_color(self, c):
@@ -34,10 +35,11 @@ class FluidLayer(QtWidgets.QLabel):
     def paintEvent(self, e: QtGui.QPaintEvent):
         painter = QtGui.QPainter(self)
         painter.fillRect(e.rect(), Qt.white)
+        
+        blocSize = int(self.size/self.grid_size)
 
         if self.densities is not None:
             density = self.densities[self.current_frame]
-            blocSize = int(self.size/self.grid_size)
             pen = QtGui.QPen()
             pen.setWidth(blocSize)
             
@@ -46,3 +48,13 @@ class FluidLayer(QtWidgets.QLabel):
                     pen.setColor(QtGui.QColor(self.r, self.g, self.b, int(255*density[i+j*self.grid_size])))
                     painter.setPen(pen)
                     painter.drawPoint(int(blocSize*(i+0.5)), int(blocSize*(self.grid_size-1 - j+0.5)))
+
+        if self.drawGrid:
+            pen = QtGui.QPen()
+            pen.setWidth(1)
+            pen.setColor(Qt.gray)
+            painter.setPen(pen)
+            for i in range(self.grid_size+1):
+                painter.drawLine(blocSize*i, 0, blocSize*i, self.size)
+                painter.drawLine(0, blocSize*i, self.size, blocSize*i)
+        painter.end()

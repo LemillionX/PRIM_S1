@@ -115,13 +115,10 @@ class Menu(QtWidgets.QVBoxLayout):
             self.fluid.setSize(self.canvas.gridResolution)
             self.fluid.d = tf.convert_to_tensor(self.canvas.initialDensity, dtype=tf.float32)
             self.fluid.layer.densities = [self.fluid.d.numpy()]
-
-        # If we are not drawing constraint
-        if index != 1:
-            self.canvas.mode = ""
-        else:
-            self.combobox.setCurrentText("trajectory")
-            self.canvas.mode = "trajectory"
+        
+        self.fluid.layer.update()
+        self.combobox.setCurrentText("trajectory")
+        self.canvas.mode = "trajectory"
 
     def setBakeFile(self, filename):
         self.fluid.filename = filename
@@ -201,8 +198,11 @@ class Menu(QtWidgets.QVBoxLayout):
     def toggleGrid(self, state):
         if state == QtCore.Qt.Checked:
             self.canvas.drawGrid()
+            self.fluid.layer.drawGrid = True
         else:
             self.canvas.hideGrid()
+            self.fluid.layer.drawGrid = False
+        self.fluid.layer.update()
 
     def bake(self):
         print("Baking Simulation")

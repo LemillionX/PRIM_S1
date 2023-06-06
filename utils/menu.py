@@ -60,6 +60,9 @@ class Menu(QtWidgets.QVBoxLayout):
         self.sourceDuration.textChanged.connect(self.setSourceDuration)
         self.generalWidgets.addRow("Source Frames", self.sourceDuration)
 
+        self.bakeFile = QtWidgets.QLineEdit(self.fluid.filename)
+        self.bakeFile.textChanged.connect(self.setBakeFile)
+        self.generalWidgets.addRow("File to bake", self.bakeFile)
 
         self.addLayout(self.generalWidgets)
 
@@ -115,10 +118,6 @@ class Menu(QtWidgets.QVBoxLayout):
 
 
         # Fluid Settings Layout
-        self.bakeFile = QtWidgets.QLineEdit(self.fluid.filename)
-        self.bakeFile.textChanged.connect(self.setBakeFile)
-        self.fluidSimulationLayout.addRow("File to bake", self.bakeFile)
-
         self.bakeButton = QtWidgets.QPushButton('Bake Simulation')
         self.bakeButton.clicked.connect(self.bake)
         self.fluidSimulationLayout.addWidget(self.bakeButton)
@@ -267,6 +266,7 @@ class Menu(QtWidgets.QVBoxLayout):
         self.fluid.bakeSimulation(lu, p, velocity_diff_LU, velocity_diff_P, scalar_diffuse_LU, scalar_diffuse_P, file)
         self.fluid.file_to_play = self.fluid.filename
         self.playFile.setText(self.fluid.file_to_play)
+        print("Simulation baked !")
 
     def play(self):
         print("Play Simulation...")
@@ -299,5 +299,9 @@ class Menu(QtWidgets.QVBoxLayout):
         trained_u, trained_v = train.trainUI(self.fluid.max_iter, self.canvas.initialDensity, self.canvas.targetDensity,
                                              self.fluid.Nframes, u_init, v_init, self.fluid.__dict__, self.fluid.coordsX,
                                              self.fluid.coordsY, constraints, self.fluid.learning_rate)
-        print("Optimisation process done, now baking simulation...")
-
+        print("Optimisation process done")
+        self.layoutChooser.setCurrentText("fluid_simulation")
+        self.setLayout(0)
+        self.fluid.u = trained_u
+        self.fluid.v = trained_v
+        self.bake()

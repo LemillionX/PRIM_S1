@@ -102,7 +102,8 @@ class Fluid():
         simulated_v.append(v.numpy().tolist())
         simulated_d.append(d.numpy().tolist())
         for t in pbar:
-            f_u, f_v = slv.buoyancyForce(d, self.size, self.size, self.coordsX, self.coordsY, self.grid_min, self.h)
+            f_u, f_v = None, None
+            # f_u, f_v = slv.buoyancyForce(d, self.size, self.size, self.coordsX, self.coordsY, self.grid_min, self.h)
             u,v,d = slv.update(u, v, d, self.size, self.size, self.coordsX, self.coordsY, self.dt, self.grid_min, self.h, lu, p,
                                self.dissipation_rate, velocity_diff_LU, velocity_diff_P, self.viscosity, scalar_diffuse_LU, scalar_diffuse_P, self.diffusion_coeff,
                                boundary_func=self.boundary, source=self.source, t=t, f_u=f_u, f_v=f_v)
@@ -150,6 +151,9 @@ class Fluid():
         self.source = settings["SOURCE"]
         self.learning_rate = settings["LEARNING_RATE"]
         self.weight = settings["WEIGHT"]
+        self.u = tf.convert_to_tensor(settings["u"][0], dtype=tf.float32)   
+        self.v = tf.convert_to_tensor(settings["v"][0], dtype=tf.float32)   
+        self.d = tf.convert_to_tensor(settings["d"][0], dtype=tf.float32)
 
     def playDensity(self, dir_path):
         if self.file_to_play is not None:

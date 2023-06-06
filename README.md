@@ -5,9 +5,6 @@ by Sammy Rasamimanana <br>
 The code are in the `src` folder, and the results of simulations will be stored in the `output` folder.<br>
 
 ## TO DO
-<li> Advanced UI using PyQt5 (ok)
-<li> Merge UI and fluid simulation (ok)
-<li> Merge UI and fluid constraint (wip)
 <li> Merge UI and animation layers
 <li> Change the speed of the trajectory
 <li> Import image as density
@@ -48,3 +45,9 @@ The code are in the `src` folder, and the results of simulations will be stored 
 <li> Training using Staggered Grid and neumann
 <li> Project the initial velocity field 
 <li> Rewrite loss function so that it uses only tensors
+
+### Week 29/05
+<li> Advanced UI using PyQt5
+<li> Merge UI and fluid simulation 
+<li> Merge UI and fluid constraint
+<li> Renormalizing to avoid numerical diffusion 

@@ -8,7 +8,6 @@ import tf_solver_staggered as slv
 from tqdm import tqdm
 import json
 import fluid_layer
-import time
 
 class Fluid():
     def __init__(self, layer_size=800):
@@ -21,7 +20,8 @@ class Fluid():
         self.layer.timer.timeout.connect(self.update_frame)
 
         # Training settings
-        self.learning_rate = 1.5
+        self.max_iter = 1
+        self.learning_rate = 0.0
         self.weight = 1
 
         # Simulation settings
@@ -64,6 +64,7 @@ class Fluid():
         self.h = (self.grid_max - self.grid_min)/self.size
         self.setCoords()
         self.layer.grid_size = size
+        self.layer.update()
 
     def setDensity(self, density):
         self.d = tf.convert_to_tensor(density, dtype=tf.float32)

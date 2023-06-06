@@ -76,11 +76,15 @@ class Canvas(QtWidgets.QLabel):
             self.targetDensity[i+j*self.gridResolution] = 1 - self.targetDensity[i+j*self.gridResolution]
 
 
-    def setGridResolution(self, resolution):
+    def setGridResolution(self, resolution, drawGrid=False):
         self.gridResolution = resolution
         self.blocSize = self.size/self.gridResolution
         self.initialDensity = np.zeros(self.gridResolution*self.gridResolution)
         self.targetDensity = np.zeros(self.gridResolution*self.gridResolution)
+        if drawGrid:
+            self.hideGrid()
+            self.drawGrid()
+        self.update()
 
     def drawGrid(self):
         painter = QtGui.QPainter(self.grid.pixmap())
@@ -141,3 +145,4 @@ class Canvas(QtWidgets.QLabel):
         pixmap = QtGui.QPixmap(self.size,  self.size)
         pixmap.fill(Qt.white)
         self.setPixmap(pixmap)
+        self.curves = []

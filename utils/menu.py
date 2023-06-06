@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0, '../src')
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtCore import Qt, QLocale
 import callbacksUI as callback
@@ -5,6 +7,8 @@ import canvas
 import numpy as np
 import fluid
 import tensorflow as tf
+import tf_solver_staggered as slv
+import tf_train as train
 
 class Menu(QtWidgets.QVBoxLayout):
 
@@ -17,19 +21,52 @@ class Menu(QtWidgets.QVBoxLayout):
         self.fluid = fluid.Fluid(layer_size=self.canvas.size)
 
         # General Widgets
-        self.resolutionText = QtWidgets.QLabel()
-        self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
-        self.resolutionText.setFixedHeight(int(0.02*self.canvas.size))
-        self.addWidget(self.resolutionText)
+        self.generalWidgets = QtWidgets.QFormLayout()
 
-        self.drawGridButton = QtWidgets.QCheckBox('Draw Grid')
+        self.resolutionText = QtWidgets.QLineEdit(str(self.canvas.gridResolution))
+        self.resolutionText.setValidator(QtGui.QIntValidator(10, 128))
+        self.resolutionText.setMaxLength(3)
+        self.resolutionText.textChanged.connect(self.setResolution)
+        self.generalWidgets.addRow("Grid resolution ", self.resolutionText)
+
+        self.drawGridButton = QtWidgets.QCheckBox()
         self.drawGridButton.stateChanged.connect(self.toggleGrid)
-        self.addWidget(self.drawGridButton)
+        self.generalWidgets.addRow("Draw Grid", self.drawGridButton)
+
+        self.frames = QtWidgets.QLineEdit(str(self.fluid.Nframes))
+        self.frames.setValidator(QtGui.QIntValidator())
+        self.frames.setMaxLength(4)
+        self.frames.textChanged.connect(self.setFrames)
+        self.generalWidgets.addRow("Frames", self.frames)
+
+        double_validator = QtGui.QDoubleValidator(0.0001, 10.0000, 4, notation=QtGui.QDoubleValidator.StandardNotation)
+        double_validator.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
+        self.dt = QtWidgets.QLineEdit(str(self.fluid.dt))
+        self.dt.setValidator(double_validator)
+        self.dt.textChanged.connect(self.setTimestep)
+        self.generalWidgets.addRow("Timestep", self.dt)
+
+        self.boundary = QtWidgets.QComboBox()
+        self.boundary.addItems([ 'dirichlet', 'neumann'])
+        self.boundary.currentTextChanged.connect(self.setBoundary)
+        self.generalWidgets.addRow("Boundary Conditions", self.boundary)
+
+        self.source = QtWidgets.QCheckBox('Add Source')
+        self.source.stateChanged.connect(self.setSource)
+        self.generalWidgets.addWidget(self.source)
+        self.sourceDuration = QtWidgets.QLineEdit(str(self.fluid.sourceDuration))
+        self.sourceDuration.setValidator(QtGui.QIntValidator())
+        self.sourceDuration.setMaxLength(4)
+        self.sourceDuration.textChanged.connect(self.setSourceDuration)
+        self.generalWidgets.addRow("Source Frames", self.sourceDuration)
+
+
+        self.addLayout(self.generalWidgets)
 
         # Layout Chooser
         self.layoutChooser = QtWidgets.QComboBox()
-        self.layoutChooser.addItems(['fluid_settings', 'fluid_constraints'])
-        self.addWidget(self.layoutChooser)
+        self.layoutChooser.addItems(['fluid_simulation', 'fluid_constraints'])
+        self.generalWidgets.addRow("Mode", self.layoutChooser)
         self.layoutChooser.currentIndexChanged.connect(self.setLayout)
 
         # Different layouts
@@ -56,35 +93,28 @@ class Menu(QtWidgets.QVBoxLayout):
         self.resetTrajButton.clicked.connect(self.reset_config)
         self.fluidConstraintsLayout.addWidget(self.resetTrajButton)
 
+        self.max_iter = QtWidgets.QLineEdit(str(self.fluid.max_iter))
+        self.max_iter.setValidator(QtGui.QIntValidator())
+        self.max_iter.setMaxLength(3)
+        self.max_iter.textChanged.connect(self.setMaxIter)
+        self.fluidConstraintsLayout.addRow("Max N_Iter", self.max_iter)
+
+        self.learningRateButton = QtWidgets.QLineEdit(str(self.fluid.learning_rate))
+        self.learningRateButton.textChanged.connect(self.setLearningRate)
+        self.learningRateButton.setValidator(double_validator)
+        self.fluidConstraintsLayout.addRow("Learning rate", self.learningRateButton)
+
+        self.weightButton = QtWidgets.QLineEdit(str(self.fluid.weight))
+        self.weightButton.textChanged.connect(self.setWeight)
+        self.weightButton.setValidator(double_validator)
+        self.fluidConstraintsLayout.addRow("Trajectory weight", self.weightButton)
+
+        self.trainButton = QtWidgets.QPushButton('Train')
+        self.trainButton.clicked.connect(self.train)
+        self.fluidConstraintsLayout.addWidget(self.trainButton)
+
 
         # Fluid Settings Layout
-        self.frames = QtWidgets.QLineEdit(str(self.fluid.Nframes))
-        self.frames.setValidator(QtGui.QIntValidator())
-        self.frames.setMaxLength(4)
-        self.frames.textChanged.connect(self.setFrames)
-        self.fluidSimulationLayout.addRow("Frames", self.frames)
-
-        self.dt = QtWidgets.QLineEdit(str(self.fluid.dt))
-        dt_validator = QtGui.QDoubleValidator(0.001, 1.000, 3, notation=QtGui.QDoubleValidator.StandardNotation)
-        dt_validator.setLocale(QLocale(QLocale.English, QLocale.UnitedStates))
-        self.dt.setValidator(dt_validator)
-        self.dt.textChanged.connect(self.setTimestep)
-        self.fluidSimulationLayout.addRow("Timestep", self.dt)
-
-        self.boundary = QtWidgets.QComboBox()
-        self.boundary.addItems([ 'dirichlet', 'neumann'])
-        self.boundary.currentTextChanged.connect(self.setBoundary)
-        self.fluidSimulationLayout.addRow("Boundary Conditions", self.boundary)
-
-        self.source = QtWidgets.QCheckBox('Add Source')
-        self.source.stateChanged.connect(self.setSource)
-        self.fluidSimulationLayout.addWidget(self.source)
-        self.sourceDuration = QtWidgets.QLineEdit(str(self.fluid.sourceDuration))
-        self.sourceDuration.setValidator(QtGui.QIntValidator())
-        self.sourceDuration.setMaxLength(4)
-        self.sourceDuration.textChanged.connect(self.setSourceDuration)
-        self.fluidSimulationLayout.addRow("Source Frames", self.sourceDuration)
-
         self.bakeFile = QtWidgets.QLineEdit(self.fluid.filename)
         self.bakeFile.textChanged.connect(self.setBakeFile)
         self.fluidSimulationLayout.addRow("File to bake", self.bakeFile)
@@ -128,6 +158,32 @@ class Menu(QtWidgets.QVBoxLayout):
             self.fluid.file_to_play = text
         else:
             self.fluid.file_to_play = None
+
+    def setMaxIter(self, value):
+        if len(value.strip()) > 0:
+            self.fluid.max_iter = int(value)
+        else:
+            self.fluid.max_iter = 0
+
+    def setLearningRate(self, value):
+        if len(value.strip()) > 0:
+            self.fluid.learning_rate = float(value)
+        else:
+            self.fluid.learning_rate = 1.0000
+
+    def setWeight(self, value):
+        if len(value.strip()) > 0:
+            self.fluid.weight = float(value)
+        else:
+            self.fluid.weight = 1.0000
+
+    def setResolution(self, text):
+        if len(text.strip()) > 0:
+            resolution= int(text)
+        else:
+            resolution = 10
+        self.canvas.setGridResolution(resolution, self.drawGridButton.isChecked())
+        self.fluid.setSize(resolution)
 
     def setFrames(self, frames):
         if len(frames.strip()) > 0:
@@ -181,7 +237,7 @@ class Menu(QtWidgets.QVBoxLayout):
             self.canvas.hideGrid()
             if self.drawGridButton.isChecked():
                 self.canvas.drawGrid()
-            self.resolutionText.setText("Grid resolution = "+str(self.canvas.gridResolution)+"x"+str(self.canvas.gridResolution))
+            self.resolutionText.setText(str(self.canvas.gridResolution))
 
             self.canvas.setInitialDensity(data["init_density"])
             self.canvas.setTargetDensity(data["target_density"])
@@ -215,3 +271,33 @@ class Menu(QtWidgets.QVBoxLayout):
     def play(self):
         print("Play Simulation...")
         self.fluid.playDensity("../bake/")
+
+    def train(self):
+        print("Optimizing under constraints...")
+        u_init = np.zeros(self.fluid.size*self.fluid.size)
+        v_init = np.zeros(self.fluid.size*self.fluid.size)
+        constraints = {}
+        cells = callback.points2indices(self.canvas.curves, int(self.canvas.blocSize), self.canvas.gridResolution)[0]
+        constraints["values"] = []
+        constraints["indices"] = []
+        for i in range(1, len(cells)-1):
+            constraints["indices"].append([cells[i][0] + cells[i][1] * self.fluid.size ])
+            constraints["values"].append([[cells[i+1][0] - cells[i-1][0]], [cells[i+1][1] - cells[i-1][1]]])
+
+        if len(constraints["indices"]) > 0:
+            print("Velocity is constrained")
+            constraints["values"] = np.array(constraints["values"])
+            idx = np.array(constraints["indices"]).flatten()
+            u_init[idx] = constraints["values"][:, :, 0][:, 0]
+            v_init[idx] = constraints["values"][:, :, 0][:, 1]
+            constraints["weights"] = tf.convert_to_tensor(self.fluid.weight*np.ones(len(constraints["indices"])), dtype=tf.float32)
+            constraints["keyframes"] = [round((i+1)*self.fluid.Nframes/(len(constraints["indices"])+1)) for i in range(len(constraints["indices"]))]
+        else:
+            constraints = None
+
+
+        trained_u, trained_v = train.trainUI(self.fluid.max_iter, self.canvas.initialDensity, self.canvas.targetDensity,
+                                             self.fluid.Nframes, u_init, v_init, self.fluid.__dict__, self.fluid.coordsX,
+                                             self.fluid.coordsY, constraints, self.fluid.learning_rate)
+        print("Optimisation process done, now baking simulation...")
+

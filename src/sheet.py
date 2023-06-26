@@ -8,7 +8,9 @@ from scipy.special import erf
 import matplotlib.cm as cm
 from termcolor import colored
 import time
-
+from tensorflow.core.framework import graph_pb2 as gpb
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+import tf_solver_staggered as slv
 
 def indexTo1D(i,j, sizeX):
     return j*sizeX+i
@@ -413,5 +415,77 @@ if len(sys.argv) > 1:
             simulation_v.append( (i*v).tolist())
         with open(file, 'w') as f:
             json.dump({"Nframes": Nframes, "u":simulation_u, "v":simulation_v}, f, indent=4, separators=(',', ': '))
+
+    if sys.argv[1] =="graph":
+        print("Testing graph")
+
+        _sizeX = 5
+        _sizeY = 5
+        _coordsX = []
+        _coordsY = []
+        _grid_min = -1
+        _grid_max = 1
+        _d = (_grid_max - _grid_min)/_sizeX
+        for j in range(_sizeY):
+            for i in range(_sizeX):
+                _coordsX.append(_grid_min + (i+0.5)*_d)
+                _coordsY.append(_grid_min + (j+0.5)*_d)
+
+        _coordsX = tf.convert_to_tensor(_coordsX, dtype=tf.float32)
+        _coordsY = tf.convert_to_tensor(_coordsY, dtype=tf.float32)
+
+
+        _u = tf.Variable(tf.random.normal([_sizeX*_sizeY]))
+        _v = tf.Variable(tf.random.normal([_sizeX*_sizeY]))
+        _s = tf.Variable(tf.random.normal([_sizeX*_sizeY]), dtype=tf.float32)
+        _dt = tf.Variable(tf.constant(0.025))
+
+        _lu, _p = slv.build_laplacian_matrix(_sizeX, _sizeY,1/(_d*_d),-4/(_d*_d))
+
+        def advectionVelocity(u, v, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d):
+            new_u = slv.advectStaggeredU(u, v, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d)
+            new_v = slv.advectStaggeredV(u, v, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d)
+            return new_u,new_v
+        
+        def projection(u, v, sizeX, sizeY, lu, p, d):
+            return slv.project(u, v, sizeX, sizeY, lu, p, d, None)
+        
+        def advectScalar(s, u, v, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d):
+            return slv.advectStaggered(s, u, v, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d)
+
+        def test(u, v, s, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d, lu, p):
+            # add force step
+            u, v = slv.addForces(u, v, dt, None, None)
+
+            # advection step
+            u,v = advectionVelocity(u, v, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d)
+
+            # # projection step
+            u, v = slv.project(u, v, sizeX, sizeY, lu, p, d, None)
+
+            # ## Sstep
+            # # advection step
+            s = slv.advectStaggered(s, u, v, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d)
+
+            return u,v,s
+            # slv.update(u, v, s, sizeX, sizeY, coordsX, coordsY, dt, grid_min, d, lu, p, alpha,  vDiff_lu, vDiff_p, visc, sDiff_lu, sDiff_p, kDiff)
+            # new_u, new_v, new_s = slv.simulate(10, _u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _lu, _p, _alpha,  _vDiff_lu, _vDiff_p, _visc, _sDiff_lu, _sDiff_p, _kDiff)
+
+        advectionV_graph = tf.function(advectionVelocity).get_concrete_function(_u, _v,_sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d)
+        projection_graph = tf.function(projection).get_concrete_function(_u, _v,_sizeX, _sizeY, _lu, _p, _d)
+        advectionS_graph = tf.function(advectScalar).get_concrete_function( _s,_u, _v, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d)
+
+        update_graph = tf.function(test).get_concrete_function(_u, _v, _s, _sizeX, _sizeY, _coordsX, _coordsY, _dt, _grid_min, _d, _lu, _p)
+
+        path = "../output/graphs"
+        advectionV_name="advection_Velocity.pbtxt"
+        projection_name="projection.pbtxt"
+        advectionS_name="advection_Scalar.pbtxt"
+        update_name="update.pbtxt"
+
+        tf.io.write_graph(advectionV_graph.graph, path, advectionV_name, as_text=True)
+        tf.io.write_graph(projection_graph.graph, path, projection_name, as_text=True)
+        tf.io.write_graph(advectionS_graph.graph, path, advectionS_name, as_text=True)
+        tf.io.write_graph(update_graph.graph, path, update_name, as_text=True)
 
 

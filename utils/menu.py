@@ -226,6 +226,10 @@ class Menu(QtWidgets.QVBoxLayout):
     def setMode(self, mode):
         print("Entering mode : ", mode)
         self.canvas.mode = mode
+        if self.canvas.mode == "target_density":
+            self.canvas.setTargetDensity(self.canvas.targetDensity)
+        if self.canvas.mode == "initial_density":
+            self.canvas.setInitialDensity(self.canvas.initialDensity)
 
     def save_config(self):
         print("Saving file")

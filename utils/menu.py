@@ -294,7 +294,9 @@ class Menu(QtWidgets.QVBoxLayout):
         u_init = np.zeros(self.fluid.size*self.fluid.size)
         v_init = np.zeros(self.fluid.size*self.fluid.size)
         constraints = {}
-        cells = callback.points2indices(self.canvas.curves, int(self.canvas.blocSize), self.canvas.gridResolution)[0]
+        cells = callback.points2indices(self.canvas.curves, int(self.canvas.blocSize), self.canvas.gridResolution)
+        if len(cells) > 0:
+            cells = cells[0]
         constraints["values"] = []
         constraints["indices"] = []
         for i in range(1, len(cells)-1):

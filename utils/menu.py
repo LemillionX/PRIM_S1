@@ -84,6 +84,10 @@ class Menu(QtWidgets.QVBoxLayout):
         self.fluidConstraintsLayout.addRow("Edit :", self.combobox)
         self.combobox.currentTextChanged.connect(self.setMode)
 
+        self.fillCheckBox = QtWidgets.QCheckBox()
+        self.fillCheckBox.stateChanged.connect(self.setFill)
+        self.fluidConstraintsLayout.addRow("Fill Density", self.fillCheckBox)
+
         self.saveButton = QtWidgets.QPushButton('Save Config')
         self.saveButton.clicked.connect(self.save_config)
         self.fluidConstraintsLayout.addWidget(self.saveButton)
@@ -231,12 +235,22 @@ class Menu(QtWidgets.QVBoxLayout):
         if self.canvas.mode == "initial_density":
             self.canvas.setInitialDensity(self.canvas.initialDensity)
 
+    def setFill(self, state):
+        if state == QtCore.Qt.Checked:
+            self.canvas.fillDensity = True
+        else:
+            self.canvas.fillDensity = False
+
     def save_config(self):
         print("Saving file")
         file_name = callback.prompt_file()
         if file_name is not None:
             indices = callback.points2indices(self.canvas.curves, int(self.canvas.blocSize), self.canvas.gridResolution)
-            callback.saveToJSON(indices[0], self.canvas.targetDensity.tolist(), self.canvas.initialDensity.tolist(), self.canvas.curves, self.canvas.gridResolution, file_name)
+            print("indices = ", indices)
+            if len(indices) > 0:
+                callback.saveToJSON(indices[0], self.canvas.targetDensity.tolist(), self.canvas.initialDensity.tolist(), self.canvas.curves, self.canvas.gridResolution, file_name)
+            else:
+                callback.saveToJSON([], self.canvas.targetDensity.tolist(), self.canvas.initialDensity.tolist(), self.canvas.curves, self.canvas.gridResolution, file_name)
         print("Trajectory saved here : ", file_name)
 
     def load_config(self):

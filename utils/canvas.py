@@ -32,20 +32,18 @@ class Canvas(QtWidgets.QLabel):
         self.last_x, self.last_y = None, None
         self.pen_color = QtGui.QColor('#000000')
         self.curves = []
-        self.contour = []
+        self.fillDensity = False
 
     def set_pen_color(self, c):
         self.pen_color = QtGui.QColor(c)
 
     def mouseMoveEvent(self, e):
-        if self.mode in ["trajectory", "initial_density"]:
+        if self.mode in ["trajectory", "initial_density", "target_density"]:
             if self.last_x is None: # First event.
                 self.last_x = e.x()
                 self.last_y = e.y()
                 if self.mode == "trajectory":
                     self.curves.append([[self.last_x, self.last_y]])
-                if self.mode == "initial_density":
-                    self.contour.append([[self.last_x, self.last_y]])
                 return # Ignore the first time.
 
 
@@ -62,6 +60,11 @@ class Canvas(QtWidgets.QLabel):
                 j = self.gridResolution - 1 - e.y()//int(self.blocSize)
                 self.drawCell(i,j,0, 255, 0)
                 self.initialDensity[i+j*self.gridResolution] = 1
+            if self.mode == "target_density":
+                i = e.x()//int(self.blocSize)
+                j = self.gridResolution - 1 - e.y()//int(self.blocSize)
+                self.drawCell(i,j,255, 255, 0)
+                self.targetDensity[i+j*self.gridResolution] = 1
             self.update()
 
             # Update the origin for next time.
@@ -69,16 +72,21 @@ class Canvas(QtWidgets.QLabel):
             self.last_y = e.y()
             if self.mode == "trajectory":
                 self.curves[-1].append([self.last_x, self.last_y])
-            if self.mode == "initial_density":
-                self.contour[-1].append([[self.last_x, self.last_y]])
 
     def mouseReleaseEvent(self, e):
-        if self.mode == "initial_density":
-            print("Filling density")
-            i = e.x()//int(self.blocSize)
-            j = self.gridResolution - 1 - e.y()//int(self.blocSize)
-            self.flood_fill(self.initialDensity, i+1, j)
-            self.drawDensity(self.initialDensity, 0, 255, 0)
+        if self.fillDensity:
+            if self.mode == "initial_density":
+                i = e.x()//int(self.blocSize)
+                j = self.gridResolution - 1 - e.y()//int(self.blocSize)
+                self.flood_fill(self.initialDensity, i+1, j)
+                self.drawDensity(self.initialDensity, 0, 255, 0)
+            
+            if self.mode == "target_density":
+                i = e.x()//int(self.blocSize)
+                j = self.gridResolution - 1 - e.y()//int(self.blocSize)
+                self.flood_fill(self.targetDensity, i+1, j)
+                self.drawDensity(self.targetDensity, 255, 255, 0)
+        
         self.last_x = None
         self.last_y = None
 

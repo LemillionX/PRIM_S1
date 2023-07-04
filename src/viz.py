@@ -1,3 +1,12 @@
+'''
+Miscellaneous functions that help to visualize the simulations
+
+:author:    Sammy Rasamimanana
+:year:      2023
+
+'''
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -8,6 +17,14 @@ import tensorflow as tf
 import tf_solver_staggered as slv
 
 def frames2gif(src_dir, save_path, fps=30):
+    '''
+    Convert an image sequence to a ``.gif``
+
+    Args:
+        src_dir: A ``string`` representing the directory where the image sequence is located
+        save_path: A ``string`` representing the path where to save the ``.gif``
+        fps: An ``int`` representing the frame rate
+    '''
     print("Convert frames to gif...")
     filenames = sorted([x for x in os.listdir(src_dir) if x.endswith('.png')])
     img_list = [Image.open(os.path.join(src_dir, name)) for name in filenames]
@@ -16,7 +33,14 @@ def frames2gif(src_dir, save_path, fps=30):
             save_all=True, duration=1 / fps * 1000, loop=0)
     print("Done.")
 
-def draw_curl(curl: np.ndarray, save_path=None):
+def draw_curl(curl, save_path=None):
+    '''
+    Draw the curl
+    
+    Args:
+        curl: A ``numpy`` array of shape (n,n) representing the curl
+        save_path: A ``string`` representing the path where to save the ``.gif``. Default is set to ``None``.
+    '''
     curl = (curl - np.min(curl))/(np.max(curl) - np.min(curl))
     img = cm.bwr(curl)
     img = Image.fromarray((img * 255).astype('uint8'))
@@ -24,7 +48,14 @@ def draw_curl(curl: np.ndarray, save_path=None):
     if save_path is not None:
         img_resize.save(save_path)
 
-def draw_density(density: np.ndarray, save_path=None):
+def draw_density(density , save_path=None):
+    '''
+    Draw the density
+    
+    Args:
+        density: A ``numpy`` array of shape (n,n) representing the density
+        save_path: A ``string`` representing the path where to save the ``.gif``. Default is set to ``None``.
+    '''
     density = erf(np.clip(density, 0, None) * 2)
     img = cm.cividis(density)
     img = Image.fromarray((img * 255).astype('uint8'))
@@ -34,12 +65,31 @@ def draw_density(density: np.ndarray, save_path=None):
         img_resize.save(save_path)
 
 def draw_velocity(velocity_field_x,velocity_field_y, sizeX, sizeY, coords_x, coords_y, grid_min, grid_step):
+    '''
+    Draw the velocity of a staggered grid
+    
+    Args:
+        velocity_field_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        velocity_field_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
+        grid_min:
+        grid_step:
+    '''
     vel_x, vel_y = slv.velocityCentered(velocity_field_x,velocity_field_y, sizeX, sizeY, coords_x, coords_y, grid_min, grid_step)
     u_viz = tf.reshape(vel_x, shape=(sizeX, sizeY)).numpy()
     v_viz = tf.reshape(vel_y, shape=(sizeX, sizeY)).numpy()
     return u_viz, v_viz
 
 def curl(u,v):
+    '''
+    Compute the curl of the velocity field
+
+    u: A ``numpy`` array representing the x-component of the velocity field
+    v: A ``numpy`` array representing the y-component of the velocity field
+    '''
     du_dy = np.gradient(u, axis=1)
     dv_dx = np.gradient(v, axis=0)
     return dv_dx - du_dy

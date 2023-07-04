@@ -279,9 +279,9 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
     Performs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
     Args:
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-componenent of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-componenent of the velocity grid of size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
         _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
@@ -344,9 +344,9 @@ def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offse
 
     Args:
         n_iter: An ``int`` representing the number of frames of the simulation
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-componenent of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-componenent of the velocity gridof size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
         _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
@@ -386,9 +386,9 @@ def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, 
 
     Args:
         n_iter: An ``int`` representing the number of frames of the simulation
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-componenent of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-componenent of the velocity gridof size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
         _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid

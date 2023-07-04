@@ -402,16 +402,16 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _ma
     Perfomrs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
     Args:
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
         _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
         _coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
         _dt: A ``float`` representing the timestep of the simulation
         _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
-        _h: A ``float`` representing the size of the cells of the grid
+        _h: A ``float`` representing the size of one cell of the grid
         _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
         _alpha: A ``float`` representing the dissipation rate
         _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity
@@ -465,16 +465,16 @@ def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offse
 
     Args:
         n_iter: An ``int`` representing the number of frames of the simulation
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
         _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
         _coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
         _dt: A ``float`` representing the timestep of the simulation
         _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
-        _h: A ``float`` representing the size of the cells of the grid
+        _h: A ``float`` representing the size of one cell of the grid
         _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
         _alpha: A ``float`` representing the dissipation rate
         _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity
@@ -507,16 +507,16 @@ def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, 
 
     Args:
         n_iter: An ``int`` representing the number of frames of the simulation
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
-        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting a grid of size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
         _coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
         _coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
         _dt: A ``float`` representing the timestep of the simulation
         _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
-        _h: A ``float`` representing the size of the cells of the grid
+        _h: A ``float`` representing the size of one cell of the grid
         _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
         _alpha: A ``float`` representing the dissipation rate
         _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity

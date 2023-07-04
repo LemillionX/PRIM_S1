@@ -1,3 +1,21 @@
+'''
+Contains all the training processes for the fluid optimizer using TensorFLow.
+
+Up-to-date functions: 
+    ``loss_quadratic``,
+    ``create_vortex``,
+    ``init_vortices``
+    ``train``,
+    ``trainUI``
+
+Obsolete functions:
+    ``train_scalar_field``,
+    ``train_vortices``
+
+:author:    Sammy Rasamimanana
+:year:      2023
+'''
+
 import tensorflow as tf
 import tf_solver_staggered as slv
 import numpy as np
@@ -8,6 +26,21 @@ from tqdm import tqdm
 
 @tf.function
 def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
+    '''
+    Return the loss function (density + velocity) to optimize, as well as its decomposition (density loss and velocity loss).
+    
+    Args:
+        current: A TensorFlow ``tensor`` representing the input density 
+        target: A TensorFlow ``tensor`` representing the target density, must have the same shape than ``current``
+        currentMidVel: A list of [``tensor``, ``tensor``] representing the intermediates states of some cells. Must have the same size than ``midVel`` 
+        midVel:  A list of sub-lists of size 2 containing ``float`` or ``int`` and representing the velocity of the sampled cells in ``currentMidVel``
+        weights: A list of lengh ``len(midVel)`` containing weights to apply to the cells in the velocity constraint
+
+    Returns:
+        density_loss + velocity_loss: A ``float`` representing the evaluated value of the loss function
+        density_loss:  A ``float`` representing the evaluated value of the density loss
+        velocity_loss: A ``float`` representing the evaluated value of the velocity loss
+    '''
     density_loss = 0.5*(tf.norm(current - target)**2)
     velocity_loss = tf.reduce_sum(tf.multiply(weights, 1.0 + tf.keras.losses.cosine_similarity(midVel, currentMidVel)))
     return density_loss + velocity_loss, density_loss, velocity_loss
@@ -15,6 +48,16 @@ def loss_quadratic(current, target, currentMidVel=[], midVel=[], weights=[]):
 
 @tf.function
 def create_vortex(center, r, w, coords, alpha=1.0):
+    '''
+    Create a vortex velocity field whose at position center with radius r and magnitude w.
+
+    Args:
+        center: A TensorFlow ``tensor`` of shape ``(2,)``  representing the positon of the center of the vortex
+        r: A ``float`` representing the vortex radius
+        w: A ``float`` representing the vortex magnitude
+        coords: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,2)`` representing the coordinates of the grid
+        alpha: A ``float`` representing the smoothing scale of the vortex inside its radius. Default is set to 1.0
+    '''
     rel_coords = coords - center
     dist = tf.linalg.norm(rel_coords, axis=-1)
     smoothed_dist = tf.exp(-tf.pow(dist*alpha/r,2.0))
@@ -24,6 +67,21 @@ def create_vortex(center, r, w, coords, alpha=1.0):
 
 @tf.function
 def init_vortices(n, centers, radius, w, coords, size):
+    '''
+    Create ``n`` vortices at the different postion in centers, with the given radius and magnitudes.
+
+    Args:
+        n: An ``int`` representing the number of vortices to create
+        centers: A TensorFlow ``tensor`` of shape ``(n,2)``  representing the list of the centers of the vortices
+        r:  A TensorFlow ``tensor`` of shape ``(n,)``  representing the list of the radius of the vortices
+        w: A TensorFlow ``tensor`` of shape ``(n,)``  representing the list of the magnitude of the vortices
+        coords: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,2)`` representing the coordinates of the grid
+        size: An ``int`` representing the resolution of the grid
+    
+    Returns:
+        u: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        v: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
+    '''
     u = tf.zeros([size*size])
     v = tf.zeros([size*size])
     for i in range(n):
@@ -32,10 +90,31 @@ def init_vortices(n, centers, radius, w, coords, size):
         v += v_tmp
     return u,v
 
-def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, filename, constraint=None, learning_rate=1.1, debug=False):
+def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, filename, constraint=None, learning_rate=1.1):
+    '''
+    Performs a gradient descent to optmize the loss function defined in ``loss_quadratic`` and generate a ``.gif`` file with the reuslt of the simulation
+
+    Args:
+        _max_iter: An ``int`` representing the maximum number of iterations of the gradient descent loop
+        _d_init: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the initial density of the grid of size ``(sizeX, sizeY)``
+        _target: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the target density of the grid of size ``(sizeX, sizeY)``
+        _nFrames: An ``int`` representing the frame where ``_d_init`` should match ``_target``
+        _u_init: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the x-component of the initial velocity grid of size ``(sizeX, sizeY)``
+        _v_init: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the y-component of the initial velocity grid of size ``(sizeX, sizeY)``
+        _fluidSettings: A ``dict`` containing the fluid parameters: timestep, grid_min, grid_max, diffusion_coeff, dissipation_rate, viscosity, boundary, source. See the ``update`` function in ``tf_solver_staggered.py``
+        _coordsX: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        _coordsY: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
+        filename: A ``string`` representing the name of the simulation ``.gif`` to be generated
+        constraint: A ``dict`` containing the fluid constraints. Default is set to ``None``
+        learning_rate=1.1: A ``float`` representing the learning rate of the gradient descent. Must be positive. Default is set to 1.1
+
+    Returns:
+        trained_vel_x: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the x-component of the trained velocity grid of size ``(sizeX, sizeY)``
+        trained_vel_y: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the y-component of the trained velocity grid of size ``(sizeX, sizeY)`` 
+    '''
+
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
     sizeY = int(np.sqrt(len(_target)))           # number of elements in the y-axis
-    assert (sizeX == sizeY), "Dimensions on axis are different !"
 
     timestep = _fluidSettings["timestep"]
     grid_min = _fluidSettings["grid_min"]
@@ -99,21 +178,10 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
         grad = tape.gradient([loss], [velocity_field_x, velocity_field_y])
         # print(grad)
         if (count < 3) or (count%10 == 0):
-            if debug:
-                print(midVel)
             print("[step {count}] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad[:2]).numpy()))
 
     if (count < _max_iter and count > 0):
         print("[step {count}] : learning_rate = {l_rate:f}, loss = {loss:f}, density_loss = {d_loss:f}, velocity_loss = {v_loss:f}, gradient_norm = {g_norm:f}".format(count=count, l_rate=l_rate.numpy(),loss=loss.numpy(), d_loss=d_loss, v_loss=v_loss, g_norm=tf.norm(grad[:2]).numpy()))
-
-
-    if debug:
-        print("After {count} iterations, the velocity field is ".format(count=count))
-        print("x component = ")
-        print(trained_vel_x)
-        print("y component = ")
-        print(trained_vel_y)
-        print(" and gradient norm = {norm}".format(norm = tf.norm(grad[:2]).numpy()))
 
     ## Testing
     density_field = tf.convert_to_tensor(_d_init, dtype=tf.float32)
@@ -141,9 +209,29 @@ def train(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetting
     return trained_vel_x, trained_vel_y
 
 def trainUI(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSettings, _coordsX, _coordsY, constraint=None, learning_rate=1.1):
+    '''
+    UI version of the function ``train``: it is called when the ``Train`` button is clicked on the UI (see ``utils/menu.py``). 
+    Performs a gradient descent to optmize the loss function defined in ``loss_quadratic``
+
+    Args:
+        _max_iter: An ``int`` representing the maximum number of iterations of the gradient descent loop
+        _d_init: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the initial density of the grid of size ``(sizeX, sizeY)``
+        _target: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the target density of the grid of size ``(sizeX, sizeY)``
+        _nFrames: An ``int`` representing the frame where ``_d_init`` should match ``_target``
+        _u_init: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the x-component of the initial velocity grid of size ``(sizeX, sizeY)``
+        _v_init: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the y-component of the initial velocity grid of size ``(sizeX, sizeY)``
+        _fluidSettings: A ``dict`` containing the fluid parameters: timestep, grid_min, grid_max, diffusion_coeff, dissipation_rate, viscosity, boundary, source. See the ``update`` function in ``tf_solver_staggered.py``
+        _coordsX: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        _coordsY: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid  
+        constraint: A ``dict`` containing the fluid constraints. Default is set to ``None``
+        learning_rate=1.1: A ``float`` representing the learning rate of the gradient descent. Must be positive. Default is set to 1.1
+
+    Returns:
+        trained_vel_x: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the x-component of the trained velocity grid of size ``(sizeX, sizeY)``
+        trained_vel_y: A TensorFlow ``tensor`` of shape ``(size*size,)`` reprensenting the y-component of the trained velocity grid of size ``(sizeX, sizeY)`` 
+    '''
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
     sizeY = int(np.sqrt(len(_target)))           # number of elements in the y-axis
-    assert (sizeX == sizeY), "Dimensions on axis are different !"
 
     timestep = _fluidSettings["dt"]
     grid_min = _fluidSettings["grid_min"]
@@ -216,8 +304,6 @@ def trainUI(_max_iter, _d_init, _target, _nFrames, _u_init, _v_init, _fluidSetti
 def train_scalar_field(_max_iter, _d_init, _target, _nFrames, a_init, _fluidSettings, _coordsX, _coordsY, _boundary, filename, constraint=None, learning_rate=1.1, debug=False):
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
     sizeY = int(np.sqrt(len(_target)))           # number of elements in the y-axis
-    assert (sizeX == sizeY), "Dimensions on axis are different !"
-
 
     timestep = _fluidSettings["timestep"]
     grid_min = _fluidSettings["grid_min"]
@@ -346,8 +432,6 @@ def train_scalar_field(_max_iter, _d_init, _target, _nFrames, a_init, _fluidSett
 def train_vortices(_max_iter, _d_init, _target, _nFrames, n_vortices, centers_init, radius_init, w_init, _fluidSettings, _coordsX, _coordsY, _boundary, filename, constraint=None, learning_rate=1.1, debug=False):
     sizeX = int(np.sqrt(len(_target)))          # number of elements in the x-axis
     sizeY = int(np.sqrt(len(_target)))           # number of elements in the y-axis
-    assert (sizeX == sizeY), "Dimensions on axis are different !"
-
 
     timestep = _fluidSettings["timestep"]
     grid_min = _fluidSettings["grid_min"]

@@ -25,8 +25,8 @@ An example of how to use it can be found in `src/training`
 
 ### User-guided smoke simulation
 The User Interface is implemented using PyQt5. Run `utils/mainwindow.py` to start it.
-![](layer_constraints.png)
-![](layer_simulation.png)
+![](layer_constraints.jpg)
+![](layer_simulation.jpg)
 
 ## Progress
 

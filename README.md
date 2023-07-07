@@ -19,7 +19,7 @@ There are some examples of how to use this solver in the files `src/vortex.py` a
 
 ### Training
 See `src/tf_train.py` for the optimization loop. <br>
-An example of how to use it can be found in `src/training`
+An example of how to use it can be found in `src/training.py`
 ![](output/lambda/lambda/density/trained_density_lambda.gif)
 
 

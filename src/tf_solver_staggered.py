@@ -1,6 +1,16 @@
 '''
 A TensorFlow version of a Stable Fluid solver in 2D, using Staggered Grid  
 
+        ---v-----v---
+        |     |     |
+        u  d  u  d  u
+        |     |     |
+        ---v-----v---
+        |     |     |
+        u  d  u  d  u
+        |     |     |
+        ---v-----v---
+
 :author:    Sammy Rasamimanana
 :year:      2023
 '''

@@ -1,6 +1,16 @@
 '''
 A TensorFlow version of a Stable Fluid solver in 2D using Centered Grid 
 
+        ---------------------
+        |         |         |
+        |  d,u,v  |  d,u,v  | 
+        |         |         |
+        ---------------------
+        |         |         |
+        |  d,u,v  |  d,u,v  | 
+        |         |         |
+        ---------------------
+
 :author:    Sammy Rasamimanana
 :year:      2023
 '''

@@ -2,14 +2,34 @@
 by Sammy Rasamimanana <br>
 <i> This project was implemented as part of an IGR PRIM Project </i>
 
-The code are in the `src` folder, and the results of simulations will be stored in the `output` folder.<br>
 
-## TO DO
-<li> Merge UI and animation layers
-<li> Change the speed of the trajectory
-<li> Import image as density
+
+## Structure of the repo
+`src` folder contains the code of the solver <br>
+`output` folder contains the image/gif results of simulations <br>
+`data` folder contains the saved configuration when using the constraints layer in the UI <br>
+`bake` contains the data of the simulations results <br>
+`utils` contains the code of the UI <br>
+
+## Differentiable Stable Fluid solver
+### Stable fluid solver
+See `src/tf_solver_staggered.py`. For now, only the staggered grid version is up-to-date.<br>
+There are some examples of how to use this solver in the files `src/vortex.py` and `src/buoyancy.py`
+![](output/vortex_128x128_density.gif)
+
+### Training
+See `src/tf_train.py` for the optimization loop. <br>
+An example of how to use it can be found in `src/training`
+![](output/lambda/lambda/density/trained_density_lambda.gif)
+
+
+### User-guided smoke simulation
+The User Interface is implemented using PyQt5. Run `utils/mainwindow.py` to start it.
+![](layer_constraints.png)
+![](layer_simulation.png)
 
 ## Progress
+
 ### Week 29/03
 <li> Code optimization of the TensorFlow pipeline
 <li> Rewrite boundary conditions on centered grid
@@ -30,9 +50,9 @@ The code are in the `src` folder, and the results of simulations will be stored 
 <li> Add load function in UI
 
 ### Week 26/04
-<li> Try on larger grid
-<li> Try curl approach
-<li> Try vortex approach
+<li> Trying on larger grid
+<li> Trying curl approach
+<li> Trying vortex approach
 
 ### Week 15/05
 <li> Tests with manually placed vortices
@@ -50,4 +70,12 @@ The code are in the `src` folder, and the results of simulations will be stored 
 <li> Advanced UI using PyQt5
 <li> Merge UI and fluid simulation 
 <li> Merge UI and fluid constraint
-<li> Renormalizing to avoid numerical diffusion 
+<li> Renormalizing to avoid numerical diffusion
+
+### Week 12/06
+<li> Documentation
+
+### Potential improvements
+<li> Merge UI and animation layers
+<li> Change the speed of the trajectory
+<li> Import image as density

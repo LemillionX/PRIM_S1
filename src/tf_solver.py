@@ -1,5 +1,5 @@
 '''
-A TensorFlow version of a Stable Fluid solver using Centered Grid 
+A TensorFlow version of a Stable Fluid solver in 2D using Centered Grid 
 
 :author:    Sammy Rasamimanana
 :year:      2023
@@ -399,7 +399,7 @@ def dissipate(s,a,dt):
 
 def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _mat, _alpha, _vDiff_mat, _visc, _sDiff_mat, _kDiff, boundary_func=None, source=None, t=np.inf):
     '''
-    Perfomrs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
+    Performs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
     Args:
         _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``

@@ -1,5 +1,5 @@
 '''
-A TensorFlow version of a Stable Fluid solver, using Staggered Grid  
+A TensorFlow version of a Stable Fluid solver in 2D, using Staggered Grid  
 
 :author:    Sammy Rasamimanana
 :year:      2023
@@ -41,6 +41,25 @@ def addSource(s, value=1.0, indices=None):
 
 @tf.function
 def buoyancyForce(d, sizeX, sizeY, coords_x, coords_y, offset, h, alpha = 1.0, g = tf.constant([0, -9.81], dtype=tf.float32)):
+    '''
+    Calculate buoyancy forces resulting from a density field
+
+    Args:
+        d: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density field
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells        
+        coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid 
+        dt: A ``float`` representing the timestep
+        offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        h: A ``float`` representing the size of the cells of the grid
+        alpha: A ``float`` representing the buoyancy coefficient. Default is set to 1.0.
+        g: A TensorFlow ``tensor`` of shape ``(2,) `` representing the gravity vector. Default is set to [0, -9.81]
+
+    Returns:
+        The x-component of the buoyancy force \n
+        The y-component of the buoyancy force
+    '''
     f_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], d, sizeX, sizeY, offset, h), elems=(coords_x - 0.5*h, coords_y))
     f_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], d, sizeX, sizeY, offset, h), elems=(coords_x, coords_y - 0.5*h))
     return -f_u*alpha*g[0], -f_v*alpha*g[1]
@@ -64,6 +83,7 @@ def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     new_u = tf.identity(u)
     new_v = tf.identity(v)
 
+    # Masks for the left and right boundaries for u and the up and down boundaries for v
     mask_u = tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) % sizeX, 0), tf.math.equal(tf.range(sizeX*sizeY) % sizeX, sizeX-1))
     mask_v = tf.logical_or(tf.math.equal(tf.range(sizeX*sizeY) // sizeX, sizeY-1),  tf.math.equal(tf.range(sizeX*sizeY) // sizeX, 0))
 
@@ -72,6 +92,7 @@ def set_solid_boundary(u, v, sizeX, sizeY, b=0):
     indices_u.set_shape((2*sizeX, 1))
     indices_v.set_shape((2*sizeY, 1))
     
+    # Updates on the masks
     new_u = tf.tensor_scatter_nd_update(new_u, indices_u, tf.constant(b, shape=[indices_u.shape[0]], dtype=tf.float32))
     new_v = tf.tensor_scatter_nd_update(new_v, indices_v, tf.constant(b, shape=[indices_v.shape[0]], dtype=tf.float32))
     return new_u, new_v
@@ -93,6 +114,20 @@ def indexTo1D(i,j, sizeX):
 
 @tf.function
 def addForces(u,v, dt, f_u,f_v):
+    '''
+    Add forces to the velocity field
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the x-component of the velocity grid 
+        v: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the y-component of the velocity grid
+        dt: A ``float`` representing the timestep
+        f_u: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the x-component of the force field
+        f_v: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the y-component of the force field
+    
+    Returns:
+        u: A TensorFlow ``tensor`` of shape ``(n*n,)`` representing the updated version of ``u``
+        v: A TensorFlow ``tensor`` of shape ``(n*n,)`` representing the updated version of ``v``
+    '''
     if f_u is not None:
         u += dt*f_u
     if f_v is not None:
@@ -139,6 +174,8 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     Returns:
         The bilinear interpolated value ``data[x,y]``
     '''
+
+    # First find the corresponding indices in the grid
     _x = (x - offset)/d - 0.5
     _y = (y - offset)/d - 0.5
     i0 = tf.clip_by_value(tf.floor(_x), 0, sizeX-1)
@@ -146,11 +183,13 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
     i1 = tf.clip_by_value(i0+1, 0, sizeX-1)
     j1 = tf.clip_by_value(j0+1, 0, sizeY-1)
 
+    # Then get the value of the data grid at those indices 
     p00 = tf.gather(data, tf.cast(indexTo1D(i0,j0,sizeX), tf.int32))
     p01 = tf.gather(data, tf.cast(indexTo1D(i0,j1,sizeX), tf.int32))
     p10 = tf.gather(data, tf.cast(indexTo1D(i1,j0,sizeX), tf.int32))
     p11 = tf.gather(data, tf.cast(indexTo1D(i1,j1,sizeX), tf.int32))
 
+    # Coefficient for interpolation
     t_i0 = (offset + (i0+1+0.5)*d -x)/d
     t_j0 = (offset + (j0+1+0.5)*d -y)/d
     t_i1 = (x - (offset + (i0+0.5)*d))/d
@@ -160,28 +199,110 @@ def sampleAt(x,y, data, sizeX, sizeY, offset, d):
 
 @tf.function
 def advectStaggeredU(u,v,sizeX, sizeY, coords_x, coords_y, dt, offset, d):
+    '''
+    Advect the x-component of the velocity field
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the x-component of the velocity grid 
+        v: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the y-component of the velocity grid
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells        
+        coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid 
+        dt: A ``float`` representing the timestep
+        offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        d: A ``float`` representing the size of the cells of the grid
+
+    Returns:
+        The x-component of the advected velocioty field 
+    '''
+
+    # Interpolate the y-component because of Staggered grid
     v_u = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset ,d), elems=(coords_x - 0.5*d, coords_y + 0.5*d))
+    
+    # Backtracing
     traced_x_u = tf.clip_by_value(coords_x - 0.5*d- dt*u, offset, offset + (sizeX-0.5)*d - 0.5*d)
     traced_y_u = tf.clip_by_value(coords_y - dt*v_u,  offset + 0.5*d, offset + (sizeY-0.5)*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(traced_x_u + 0.5*d, traced_y_u))
 
 @tf.function
 def advectStaggeredV(u, v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
+    '''
+    Advect the y-component of the velocity field
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the x-component of the velocity grid 
+        v: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the y-component of the velocity grid
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells        
+        coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid 
+        dt: A ``float`` representing the timestep
+        offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        d: A ``float`` representing the size of the cells of the grid
+
+    Returns:
+        The y-component of the advected velocity field 
+    '''
+
+    # Interpolate the x-component because of Staggered grid
     u_v = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y - 0.5*d))
+
+    # Backtracing
     traced_x_v = tf.clip_by_value(coords_x - dt*u_v, offset + 0.5*d, offset + (sizeX-0.5)*d)
     traced_y_v = tf.clip_by_value(coords_y - 0.5*d - dt*v, offset, offset + (sizeY-0.5)*d - 0.5*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(traced_x_v, traced_y_v + 0.5*d))
 
 @tf.function
 def advectStaggered(f, u,v, sizeX, sizeY, coords_x, coords_y, dt, offset, d):
+    '''
+    Advect a scalar field ``f`` in the velocity field ``(u,v) ``
+
+    Args:
+        f: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the scalar field in a grid of size ``(sizeX, sizeY)``
+        u: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the x-component of the velocity grid 
+        v: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the y-component of the velocity grid
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells        
+        coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid 
+        dt: A ``float`` representing the timestep
+        offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        d: A ``float`` representing the size of the cells of the grid
+
+    Returns:
+        The advected scalar field 
+    '''
+
+    # Interpolate the velocity field because of the staggered grid
     u_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
     v_f = tf.vectorized_map(fn=lambda x:sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
+
+    # Backtracing
     traced_x = tf.clip_by_value(coords_x - dt*u_f, offset + 0.5*d, offset + (sizeX-0.5)*d)
     traced_y = tf.clip_by_value(coords_y - dt*v_f, offset + 0.5*d, offset + (sizeY-0.5)*d)
     return tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], f, sizeX, sizeY, offset, d), elems=(traced_x, traced_y))
 
 @tf.function
 def velocityCentered(u,v,sizeX, sizeY, coords_x, coords_y, offset, d):
+    '''
+    Get the velocity at the centers of the cells in a staggered grid
+    
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the x-component of the velocity grid 
+        v: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the y-component of the velocity grid
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells        
+        coords_x: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the x-coordinates of the fluid's grid
+        coords_y: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` representing the y-coordinates of the fluid's grid 
+        dt: A ``float`` representing the timestep
+        offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
+        d: A ``float`` representing the size of the cells of the grid
+    
+    Returns:
+        vel_x: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the x-component of the velocity at the centers of the cells 
+        vel_y: A TensorFlow ``tensor`` of shape ``(n*n,)`` reprensenting the y-component of the velocity at the centers of the cells 
+    '''
     vel_x = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], u, sizeX, sizeY, offset, d), elems=(coords_x + 0.5*d, coords_y))
     vel_y = tf.vectorized_map(fn=lambda x: sampleAt(x[0], x[1], v, sizeX, sizeY, offset, d), elems=(coords_x, coords_y + 0.5*d))
     return vel_x, vel_y
@@ -234,8 +355,9 @@ def diffuse(f, lu, p):
     Diffuses the scalar field ``f`` using a matrix ``mat``.
 
     Args:
-        f: A TensorFlow tensor of shape (N*N,)
-        mat: A TensorFlow tensor of shape (N*N, N*N)
+        f: A TensorFlow ``tensor`` of shape (N*N,)
+        lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the system's matrix
+        p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the corresponding permutation matrix
     Returns:
         A TensorFlow ``tensor`` of shape (N*N, 1) representing the diffused f
     '''
@@ -244,6 +366,21 @@ def diffuse(f, lu, p):
     return tf.linalg.lu_solve(lu, p, f)
 
 def solvePressure(u,v, sizeX, sizeY, h, lu, p):
+    '''
+    Find the pressure by solving the Poisson equation
+
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid 
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells               
+        h: A ``float`` representing the size of the cells of the grid
+        lu: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY, sizeX*sizeY)`` encoding the upper triangular and lower triangular factors of the Poisson equation's matrix for the projection. See function ``build_laplacian_matrix``.
+        p: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY, sizeX*sizeY)`` encoding ``_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
+    
+    Returns:
+        The pressure which is the solution of the Poisson equation
+    '''
     dx = tf.roll(u, shift=-1, axis=0) - u
     dy = tf.roll(v, shift=-sizeX, axis=0) - v
     div = (dx+dy)/h
@@ -252,13 +389,34 @@ def solvePressure(u,v, sizeX, sizeY, h, lu, p):
     return tf.linalg.lu_solve(lu, p, div)
 
 def project(u,v,sizeX,sizeY, lu, q, h, boundary_func):
+    '''
+    Project the velocity field so that it is divergence free.
+    
+    Args:
+        u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
+        sizeX: An ``int`` representing the number of horizontal cells
+        sizeY: An ``int`` representing the number of vertical cells
+        lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Poisson equation's matrix for the projection. See function ``build_laplacian_matrix``.
+        q: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
+        h: A ``float`` representing the size of the cells of the grid
+        boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape.
+
+    Returns:
+        new_u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the projected velocity field
+        new_v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the projected velocity field
+    '''
+
+    # First compute the pressure
     _u, _v = set_boundary(u,v,sizeX,sizeY, boundary_func)
     p = solvePressure(_u, _v, sizeX, sizeY, h, lu, q)[...,0]
 
+    # Then compute the gradient of the pressure
     gradP_u = (p - tf.roll(p, shift=1, axis=0))/h
     gradP_v = (p - tf.roll(p, shift=sizeY, axis=0))/h
     gradP_u, gradP_v = set_boundary(gradP_u, gradP_v, sizeX, sizeY, boundary_func)
     
+    # Project using the gradient of the pressure
     new_u = _u - gradP_u
     new_v = _v - gradP_v
     return new_u, new_v
@@ -279,8 +437,8 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
     Performs one update of the fluid simulation of the velocity field (_u,_v) and the density field _s, using Centered Grid
 
     Args:
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-componenent of the velocity grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-componenent of the velocity grid of size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
         _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
@@ -289,20 +447,29 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
         _dt: A ``float`` representing the timestep of the simulation
         _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
         _h: A ``float`` representing the size of the cells of the grid
-        _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
+        _lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Poisson equation's matrix for the projection. See function ``build_laplacian_matrix``.
+        _p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
         _alpha: A ``float`` representing the dissipation rate
-        _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity
+        _vDiff_lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Lacplacian matrix for the velocity diffusion. See function ``build_laplacian_matrix``.
+        _vDiff_p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_vDiff_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
         _visc: A ``float`` representing the fluid's viscosity
-        _sDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse density
-        _visc: A ``float`` representing the diffusion rate of the density
+        _sDiff_mat_lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Lacplacian matrix for the scalar diffusion. See function ``build_laplacian_matrix``.
+        _sDiff_mat_p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_sDiff_mat_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
+        _kDiff: A ``float`` representing the diffusion rate of the density
         boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the reflexive boundaries are applied.
         source: A ``dict`` representing a density source. Default is set to ``None``, meaning there is no source
                 ``source["time"]`` is an ``int`` indicating the last frame where the source exists \n
                 ``source["value"]`` is a ``float`` representing its value \n
                 ``source["indices"]`` is a TensorFlow ``tensor`` of shape (N,1,1) that indicates all the indices in the density grid ``_s`` where the source should be
         t: An ``int`` representing the current frame. Default is set to ``np.inf``, meaning we don't need to know the current frame number
+    
+    Returns:
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity field at the end of the update
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity field at the end of the update
+        _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density field at the end of the update
+        
     '''
-    ## Vstep
+    ## Velocity step
     # add force step
     _u, _v = addForces(_u, _v, _dt, f_u, f_v)
 
@@ -320,7 +487,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
     # projection step
     _u, _v = project(_u, _v, _sizeX, _sizeY, _lu, _p, _h, boundary_func)
 
-    ## Sstep
+    ## Scalar step
     if (source is not None) and (t < source["time"]) :
         _s = addSource(_s, source["value"], source["indices"])
     # advection step
@@ -334,6 +501,7 @@ def update(_u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offset, _h, _lu
     if _alpha > 0:
         _s = dissipate(_s, _alpha, _dt)
     
+    # update source
     if (source is not None) and (t < source["time"]) :
         _s = addSource(_s, source["value"], source["indices"])
     return _u, _v, _s
@@ -344,8 +512,8 @@ def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offse
 
     Args:
         n_iter: An ``int`` representing the number of frames of the simulation
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-componenent of the velocity grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-componenent of the velocity gridof size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
         _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
@@ -354,11 +522,14 @@ def simulate(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, _dt, _offse
         _dt: A ``float`` representing the timestep of the simulation
         _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
         _h: A ``float`` representing the size of the cells of the grid
-        _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
+        _lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Poisson equation's matrix for the projection. See function ``build_laplacian_matrix``.
+        _p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
         _alpha: A ``float`` representing the dissipation rate
-        _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity
+        _vDiff_lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Lacplacian matrix for the velocity diffusion. See function ``build_laplacian_matrix``.
+        _vDiff_p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_vDiff_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
         _visc: A ``float`` representing the fluid's viscosity
-        _sDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse density
+        _sDiff_mat_lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Lacplacian matrix for the scalar diffusion. See function ``build_laplacian_matrix``.
+        _sDiff_mat_p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_sDiff_mat_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
         _kDiff: A ``float`` representing the diffusion rate of the density
         boundary_func: A function of signature (``tensor``, ``tensor``, ``int``, ``int``, ``float``) -> (``tensor``, ``tensor``) where the tensors must have the same shape. Default is set to ``None``, in that case the reflexive boundaries are applied.
         source: A ``dict`` representing a density source. Default is set to ``None``, meaning there is no source
@@ -386,8 +557,8 @@ def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, 
 
     Args:
         n_iter: An ``int`` representing the number of frames of the simulation
-        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-componenent of the velocity grid of size ``(sizeX, sizeY)``
-        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-componenent of the velocity gridof size ``(sizeX, sizeY)``
+        _u: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the x-component of the velocity grid of size ``(sizeX, sizeY)``
+        _v: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the y-component of the velocity grid of size ``(sizeX, sizeY)``
         _s: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,)`` reprensenting the density in a grid of size ``(sizeX, sizeY)``
         _sizeX: An ``int`` representing the number of horizontal cells
         _sizeY: An ``int`` representing the number of vertical cells
@@ -396,11 +567,14 @@ def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, 
         _dt: A ``float`` representing the timestep of the simulation
         _offset: A ``float`` such that the coordinate at the bottom-left corner of the grid is ``(offset, offset)`` \n
         _h: A ``float`` representing the size of the cells of the grid
-        _mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to find the irrotational vector field of the Helmholtz decomposition
+        _lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Poisson equation's matrix for the projection. See function ``build_laplacian_matrix``.
+        _p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
         _alpha: A ``float`` representing the dissipation rate
-        _vDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse velocity
+        _vDiff_lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Lacplacian matrix for the velocity diffusion. See function ``build_laplacian_matrix``.
+        _vDiff_p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_vDiff_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
         _visc: A ``float`` representing the fluid's viscosity
-        _sDiff_mat: A TensorFlow ``tensor`` of shape ``(sizeX*sizeY,sizeX*sizeY)`` representing the Laplacian Matrix used to diffuse density
+        _sDiff_mat_lu: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding the upper triangular and lower triangular factors of the Lacplacian matrix for the scalar diffusion. See function ``build_laplacian_matrix``.
+        _sDiff_mat_p: A TensorFlow ``tensor`` of shape (N*N, N*N) encoding ``_sDiff_mat_lu``'s permutation matrix. See function ``build_laplacian_matrix``.
         _kDiff: A ``float`` representing the diffusion rate of the density
         keyframes: A ``list`` or Numpy ``array`` of dimension 1 of ``int`` representing the frames when we want to keep track of the fluid's state
         keyidx: A ``list`` or Numpy ``array`` of dimension 1 of ``int`` representing the indices of the cells when we want to keep track of
@@ -418,6 +592,7 @@ def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, 
         midVel: A list of [``tensor``, ``tensor``] representing the intermediates states of some cells 
     '''
 
+    # Initialise the container for intermediate velocities
     _midVel = []
     count = -1
     for t in tqdm(range(1, n_iter+1), desc = "Simulating....", leave=leave):
@@ -425,6 +600,7 @@ def simulateConstrained(n_iter, _u, _v, _s, _sizeX, _sizeY, _coord_x, _coord_y, 
         _u = new_u
         _v = new_v
         _s = new_s
+        # Add the intermediate velocity if it is one we want
         if t in keyframes:
             count += 1
             _midVel.append(tf.stack([_u[keyidx[count]], _v[keyidx[count]]], 0))

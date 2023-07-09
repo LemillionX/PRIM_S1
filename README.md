@@ -43,7 +43,7 @@ The User Interface is implemented using PyQt5. Run `utils/mainwindow.py` to star
 <li> Parsing file to .json format to make tests more organized
 <li> Changing initial condition to be guided by the trajectory
 
-### Week 12/04
+### Week 19/04
 <li> Change loss function using cosine loss
 <li> Change initial guess
 <li> Try training dt
